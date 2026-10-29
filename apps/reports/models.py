@@ -96,3 +96,4 @@ class ReportDispatchLog(models.Model):
 
     def __str__(self):
         return f"{self.report_type} ({self.format}) to {self.recipient} via {self.channel}: {self.status}"
+

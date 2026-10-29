@@ -59,3 +59,4 @@ class CopilotChatMessage(models.Model):
 
     def __str__(self):
         return f"[{self.role}] {self.content[:40]}..."
+

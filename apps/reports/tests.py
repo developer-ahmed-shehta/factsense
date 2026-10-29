@@ -169,3 +169,4 @@ class ReportsGeneratorTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             content = resp.content.decode('utf-8')
             self.assertFalse(bool(EMOJI_PATTERN.search(content)), f"Found emoji in URL {u}!")
+

@@ -5,3 +5,4 @@ class ReportsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.reports'
     verbose_name = 'Shift Handover & Production Reports'
+

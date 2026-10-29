@@ -59,3 +59,4 @@ def dispatch_subscription(subscription, user=None):
     subscription.last_sent_at = timezone.now()
     subscription.save(update_fields=['last_sent_at'])
     return results
+

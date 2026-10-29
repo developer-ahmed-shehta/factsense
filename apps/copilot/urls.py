@@ -6,3 +6,4 @@ urlpatterns = [
     path('api/chat/', views.copilot_chat_api, name='copilot_chat_api'),
     path('api/quick-summary/', views.copilot_quick_summary_api, name='copilot_quick_summary_api'),
 ]
+

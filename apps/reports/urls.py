@@ -16,3 +16,4 @@ urlpatterns = [
     path('explorer/', views.historical_explorer_view, name='reports_explorer'),
     path('explorer/export/csv/', views.historical_export_csv_view, name='reports_explorer_export_csv'),
 ]
+

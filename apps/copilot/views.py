@@ -112,3 +112,4 @@ def copilot_quick_summary_api(request):
 
     data = get_quick_executive_summary(line=line, lang=lang)
     return JsonResponse(data)
+

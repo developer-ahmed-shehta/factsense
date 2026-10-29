@@ -189,3 +189,4 @@ class CopilotEngineTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(resp_blocked.status_code, 403)
+
