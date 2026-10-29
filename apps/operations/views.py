@@ -62,16 +62,24 @@ def operator_console_view(request):
 
     current_state = None
     is_locked = False
+    is_locked_safety = False
     lock_ticket = None
     open_downtime_event = None
     active_call_ticket = None
+    kiosk_check = {'allowed': True, 'conflict': False, 'locked_out': False, 'message': ''}
 
     if selected_machine:
+        from apps.accounts.services.kiosk_service import (
+            check_kiosk_exclusivity, claim_operator_session, check_machine_force_logout
+        )
         current_state, _ = MachineCurrentState.objects.get_or_create(
             machine=selected_machine,
             defaults={'state_code': 'RUNNING', 'current_speed_cpm': selected_machine.ideal_run_rate_cpm}
         )
-        is_locked = is_machine_locked_by_maintenance(selected_machine)
+        is_locked_maint = is_machine_locked_by_maintenance(selected_machine)
+        is_locked_safety, safety_reason = check_machine_force_logout(selected_machine)
+        is_locked = is_locked_maint or is_locked_safety
+
         lock_ticket = get_active_machine_lock_ticket(selected_machine)
         open_downtime_event = DowntimeEvent.objects.filter(
             machine=selected_machine, end_time__isnull=True
@@ -79,6 +87,11 @@ def operator_console_view(request):
         active_call_ticket = MaintenanceTicket.objects.filter(
             machine=selected_machine, is_operator_call=True, status__in=['OPEN', 'ASSIGNED', 'IN_PROGRESS']
         ).first()
+
+        # Kiosk session exclusivity check
+        kiosk_check = check_kiosk_exclusivity(request.user, selected_machine, request.session.session_key)
+        if kiosk_check['allowed'] and getattr(request, 'active_role', None) == 'operator':
+            claim_operator_session(request.user, selected_machine, request.session.session_key)
 
     categories = ReasonCategory.objects.prefetch_related('reasons').all()
     defect_reasons = DefectReason.objects.all()
@@ -92,6 +105,7 @@ def operator_console_view(request):
         'selected_machine': selected_machine,
         'curr': current_state,
         'is_locked': is_locked,
+        'is_locked_safety': is_locked_safety,
         'lock_ticket': lock_ticket,
         'open_event': open_downtime_event,
         'active_call_ticket': active_call_ticket,
@@ -99,6 +113,10 @@ def operator_console_view(request):
         'defect_reasons': defect_reasons,
         'recent_defects': recent_defects,
         'recent_weights': recent_weights,
+        'kiosk_check': kiosk_check,
+        'kiosk_conflict': kiosk_check.get('conflict', False),
+        'kiosk_locked_out': is_locked_safety or kiosk_check.get('locked_out', False),
+        'kiosk_message': kiosk_check.get('message', ''),
     }
     return render(request, 'portal/operator_home.html', context)
 
@@ -110,9 +128,16 @@ def operator_increment_count_action(request):
     machine_id = request.POST.get('machine_id')
     machine = get_object_or_404(Machine, id=machine_id)
 
-    # Check lock
-    if is_machine_locked_by_maintenance(machine):
-        messages.error(request, "Machine is locked out by maintenance. Piece input is blocked.")
+    # Check lock and session exclusivity
+    from apps.accounts.services.kiosk_service import check_machine_force_logout, check_kiosk_exclusivity
+    is_locked_safety, safety_msg = check_machine_force_logout(machine)
+    if is_machine_locked_by_maintenance(machine) or is_locked_safety:
+        messages.error(request, f"Machine {machine.code} is locked out ({safety_msg or 'Maintenance'}). Piece input is blocked.")
+        return redirect(f"/operator/?machine={machine.code}")
+
+    kiosk_check = check_kiosk_exclusivity(request.user, machine, request.session.session_key)
+    if not kiosk_check['allowed']:
+        messages.error(request, kiosk_check['message'])
         return redirect(f"/operator/?machine={machine.code}")
 
     increment = int(request.POST.get('increment', 1))
@@ -181,6 +206,19 @@ def operator_scrap_action(request):
     """Logs scrap defect quantity via on-screen touch numpad."""
     machine_id = request.POST.get('machine_id')
     machine = get_object_or_404(Machine, id=machine_id)
+
+    # Check lock and session exclusivity
+    from apps.accounts.services.kiosk_service import check_machine_force_logout, check_kiosk_exclusivity
+    is_locked_safety, safety_msg = check_machine_force_logout(machine)
+    if is_machine_locked_by_maintenance(machine) or is_locked_safety:
+        messages.error(request, f"Machine {machine.code} is locked out ({safety_msg or 'Maintenance'}). Scrap input is blocked.")
+        return redirect(f"/operator/?machine={machine.code}")
+
+    kiosk_check = check_kiosk_exclusivity(request.user, machine, request.session.session_key)
+    if not kiosk_check['allowed']:
+        messages.error(request, kiosk_check['message'])
+        return redirect(f"/operator/?machine={machine.code}")
+
     reason_id = request.POST.get('reason_id')
     quantity = int(request.POST.get('quantity', 1))
     disposition = request.POST.get('disposition', 'SCRAP')
@@ -262,6 +300,33 @@ def operator_cancel_call_action(request):
     return redirect('/operator/')
 
 
+@role_required('operator', 'supervisor', 'admin')
+@require_POST
+def operator_session_release_action(request):
+    """Operator releases active machine session."""
+    from apps.accounts.services.kiosk_service import release_operator_session
+    machine_id = request.POST.get('machine_id')
+    machine = get_object_or_404(Machine, id=machine_id)
+    released = release_operator_session(request.user, machine, supervisor_override=False)
+    if released:
+        messages.info(request, f"Kiosk session for machine {machine.code} released successfully.")
+    else:
+        messages.info(request, f"No active session found for machine {machine.code}.")
+    return redirect(f"/operator/?machine={machine.code}")
+
+
+@role_required('supervisor', 'admin')
+@require_POST
+def operator_session_override_action(request):
+    """Supervisor overrides and releases a conflicting machine session."""
+    from apps.accounts.services.kiosk_service import release_operator_session
+    machine_id = request.POST.get('machine_id')
+    machine = get_object_or_404(Machine, id=machine_id)
+    release_operator_session(request.user, machine, supervisor_override=True)
+    messages.warning(request, f"Supervisor override executed: Previous operator session on {machine.code} cleared.")
+    return redirect(f"/operator/?machine={machine.code}")
+
+
 # ==============================================================================
 # 2. Floor Monitor & Shift Matrix (F15)
 # ==============================================================================
@@ -318,7 +383,7 @@ def floor_matrix_view(request):
 # 3. Stoppages Intelligence & SMED Changeovers (F06)
 # ==============================================================================
 
-@role_required('supervisor', 'maintenance', 'manager', 'admin')
+@role_required('supervisor', 'maintenance', 'engineer', 'manager', 'admin')
 def stoppages_hub_view(request):
     """
     Active Stoppages Registry & Juran 80/20 Pareto Analytics (/stoppages/).
@@ -347,7 +412,7 @@ def stoppages_hub_view(request):
     return render(request, 'portal/stoppages_home.html', context)
 
 
-@role_required('supervisor', 'maintenance', 'manager', 'admin')
+@role_required('supervisor', 'maintenance', 'engineer', 'manager', 'admin')
 def stoppages_reliability_view(request):
     """Detailed reliability metrics view (/stoppages/reliability/)."""
     return stoppages_hub_view(request)

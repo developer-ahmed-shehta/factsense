@@ -38,8 +38,61 @@
 
   {% if selected_machine %}
 
+    <!-- KIOSK EXCLUSIVITY CONFLICT BANNER -->
+    {% if kiosk_conflict %}
+      <div style="background: #FEF3C7; border: 2px solid #F59E0B; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 48px; height: 48px; border-radius: 8px; background: #F59E0B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900;">
+            LOCK
+          </div>
+          <div>
+            <div style="font-size: 16px; font-weight: 800; color: #92400E; text-transform: uppercase;">
+              {% if is_rtl %}جلسة المشغل الحصرية نشطة لمستخدم آخر{% else %}EXCLUSIVE OPERATOR SESSION ACTIVE{% endif %}
+            </div>
+            <div style="font-size: 13px; color: #B45309; margin-top: 2px;">
+              {{ kiosk_message }}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          {% if request.active_role in 'supervisor,admin' %}
+            <form method="POST" action="{% url 'operator_session_override_action' %}">
+              {% csrf_token %}
+              <input type="hidden" name="machine_id" value="{{ selected_machine.id }}">
+              <button type="submit" class="fs-btn fs-btn-primary" style="background: #D97706; border-color: #D97706; min-height: 44px;">
+                Supervisor Override &amp; Claim
+              </button>
+            </form>
+          {% else %}
+            <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700; padding: 8px 12px;">
+              READ-ONLY MONITORING MODE
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- SAFETY FORCE-LOGOUT LOCKOUT BANNER -->
+    {% if kiosk_locked_out and not is_locked_maint %}
+      <div style="background: #FEF2F2; border: 2px solid #EF4444; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 48px; height: 48px; border-radius: 8px; background: #DC2626; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900;">
+            STOP
+          </div>
+          <div>
+            <div style="font-size: 16px; font-weight: 800; color: #991B1B; text-transform: uppercase;">
+              {% if is_rtl %}قفل الأمان الإجباري نشط (Safety Force-Logout Lockout){% else %}SAFETY FORCE-LOGOUT LOCKOUT ACTIVE{% endif %}
+            </div>
+            <div style="font-size: 13px; color: #B91C1C; margin-top: 2px;">
+              {{ kiosk_message }}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
     <!-- MAINTENANCE FORCE-LOCKOUT BLOCKING OVERLAY -->
-    {% if is_locked %}
+    {% if is_locked_maint or is_locked and not kiosk_locked_out %}
       <div style="background: #FEE2E2; border: 2px solid #EF4444; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
         <div style="display: flex; align-items: center; gap: 16px;">
           <div style="width: 48px; height: 48px; border-radius: 8px; background: #EF4444; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;">
@@ -80,8 +133,17 @@
             {{ selected_machine.name }} ({{ selected_machine.code }})
           </h1>
         </div>
-        <div style="font-size: 13px; color: #475569;">
-          Operator: <strong>{{ request.user.get_display_name }}</strong> &bull; Line: <strong>{{ selected_line.name }}</strong> &bull; SKU: <strong>{{ selected_line.current_product.name|default:"Not Assigned" }}</strong>
+        <div style="font-size: 13px; color: #475569; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span>Operator: <strong>{{ request.user.get_display_name }}</strong> &bull; Line: <strong>{{ selected_line.name }}</strong> &bull; SKU: <strong>{{ selected_line.current_product.name|default:"Not Assigned" }}</strong></span>
+          {% if kiosk_check.allowed and request.active_role == 'operator' %}
+            <form method="POST" action="{% url 'operator_session_release_action' %}" style="display: inline; margin: 0;">
+              {% csrf_token %}
+              <input type="hidden" name="machine_id" value="{{ selected_machine.id }}">
+              <button type="submit" class="fs-btn fs-btn-secondary fs-btn-sm" style="font-size: 11px; padding: 3px 8px; border-color: #CBD5E1; color: #64748B;">
+                {% if is_rtl %}إنهاء الجلسة وتسجيل الخروج{% else %}Sign Off / Release Machine{% endif %}
+              </button>
+            </form>
+          {% endif %}
         </div>
       </div>
 
@@ -126,7 +188,7 @@
             {% csrf_token %}
             <input type="hidden" name="machine_id" value="{{ selected_machine.id }}">
             <input type="hidden" name="increment" value="1">
-            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
+            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked or kiosk_conflict %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
               +1
             </button>
           </form>
@@ -134,7 +196,7 @@
             {% csrf_token %}
             <input type="hidden" name="machine_id" value="{{ selected_machine.id }}">
             <input type="hidden" name="increment" value="5">
-            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
+            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked or kiosk_conflict %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
               +5
             </button>
           </form>
@@ -142,7 +204,7 @@
             {% csrf_token %}
             <input type="hidden" name="machine_id" value="{{ selected_machine.id }}">
             <input type="hidden" name="increment" value="10">
-            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
+            <button type="submit" class="fs-btn fs-btn-primary" {% if is_locked or kiosk_conflict %}disabled{% endif %} style="width: 100%; min-height: 48px; font-size: 16px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
               +10
             </button>
           </form>

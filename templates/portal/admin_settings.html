@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}System Settings &amp; Plant Parameters · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-admin-settings-page" style="max-width: 1200px; margin: 0 auto;">
+
+  <div class="fs-page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title" style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0;">
+        {% if is_rtl %}إعدادات النظام والمعاملات التشغيلية للمصنع{% else %}System Settings &amp; Plant Parameters{% endif %}
+      </h1>
+      <p class="fs-page-subtitle" style="font-size: 13px; color: #64748B; margin-top: 4px;">
+        {% if is_rtl %}تهيئة الموقع الصناعي، المنطقة الزمنية، أهداف الأداء (OEE)، وقواعد مراقبة التليمترية.{% else %}Configure site parameters, plant timezone, benchmark OEE targets, and telemetry watchdog thresholds.{% endif %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 8px;">
+      <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
+        {% if is_rtl %}العودة للإدارة{% else %}Back to Admin{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <form method="POST" action="{% url 'admin_settings' %}">
+    {% csrf_token %}
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; margin-bottom: 24px;">
+
+      <!-- Plant Profile & Site Localization -->
+      <div class="fs-table-card" style="padding: 24px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-top: 0; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
+          {% if is_rtl %}بيانات المنشأة والموقع الجغرافي{% else %}Facility Profile &amp; Site Localization{% endif %}
+        </h3>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Factory Code</label>
+          <input type="text" value="{{ factory.code }}" disabled style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-family: monospace; font-size: 13px; color: #64748B;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Factory Name (English)</label>
+          <input type="text" name="name" value="{{ factory.name }}" required style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Factory Name (Arabic)</label>
+          <input type="text" name="name_ar" value="{{ factory.name_ar }}" dir="rtl" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Location / Industrial City</label>
+          <input type="text" name="location" value="{{ factory.location }}" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Plant Timezone</label>
+            <select name="timezone" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+              {% for tz in timezones %}
+                <option value="{{ tz }}" {% if factory.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Reporting Currency</label>
+            <select name="currency" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+              {% for cur in currencies %}
+                <option value="{{ cur }}" {% if factory.currency == cur %}selected{% endif %}>{{ cur }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operational Benchmarks & OEE Targets -->
+      <div class="fs-table-card" style="padding: 24px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-top: 0; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
+          {% if is_rtl %}المعايير القياسية وأهداف الفعالية الكلية (OEE){% else %}Operational Benchmarks &amp; OEE Targets{% endif %}
+        </h3>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Line 1 Target OEE (%)</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="number" step="0.1" min="10" max="100" name="target_oee" value="{{ line.target_oee|default:'85.0' }}" required style="width: 120px; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 14px; font-weight: 700; font-family: monospace;">
+            <span style="font-size: 12px; color: #64748B;">World-Class Standard: 85.0%</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Availability Benchmark Target (%)</label>
+          <input type="number" step="0.1" value="90.0" disabled style="width: 120px; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-size: 13px; color: #64748B; font-family: monospace;">
+          <span style="font-size: 11px; color: #94A3B8; margin-left: 8px;">ISO 22400 standard benchmark</span>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Performance Benchmark Target (%)</label>
+          <input type="number" step="0.1" value="95.0" disabled style="width: 120px; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-size: 13px; color: #64748B; font-family: monospace;">
+          <span style="font-size: 11px; color: #94A3B8; margin-left: 8px;">Bottleneck cadence pace</span>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Quality Benchmark Target (%)</label>
+          <input type="number" step="0.1" value="99.0" disabled style="width: 120px; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-size: 13px; color: #64748B; font-family: monospace;">
+          <span style="font-size: 11px; color: #94A3B8; margin-left: 8px;">First-pass yield target</span>
+        </div>
+
+        <div style="margin-bottom: 0;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Telemetry Watchdog Inactivity Threshold</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="number" value="15" disabled style="width: 80px; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; background: #F8FAFC; font-size: 13px; color: #64748B; font-family: monospace;">
+            <span style="font-size: 12px; color: #64748B;">seconds before transitioning machine to NO_DATA state</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary">
+        {% if is_rtl %}إلغاء{% else %}Cancel{% endif %}
+      </a>
+      <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A; font-weight: 700; padding: 10px 24px;">
+        {% if is_rtl %}حفظ التعديلات وتحديث الإعدادات{% else %}Save Configuration &amp; Update Settings{% endif %}
+      </button>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}
+

@@ -59,6 +59,14 @@ def login_view(request):
             else:
                 messages.error(request, 'This user account is inactive.')
         else:
+            AuditEvent.objects.create(
+                actor=None,
+                active_role='anonymous',
+                action='LOGIN_FAILED',
+                resource='User',
+                resource_id=username or '',
+                details={'attempted_username': username, 'ip': request.META.get('REMOTE_ADDR', '')}
+            )
             messages.error(request, 'Invalid username or password.')
 
     return render(request, 'accounts/login.html', {

@@ -14,6 +14,8 @@ urlpatterns = [
     path('operator/weight/', views.operator_weight_action, name='operator_weight_action'),
     path('operator/call-maintenance/', views.operator_call_maintenance_action, name='operator_call_maintenance_action'),
     path('operator/cancel-call/', views.operator_cancel_call_action, name='operator_cancel_call_action'),
+    path('operator/session/release/', views.operator_session_release_action, name='operator_session_release_action'),
+    path('operator/session/override/', views.operator_session_override_action, name='operator_session_override_action'),
 
     # SMED Actions (F06)
     path('smed/start/', views.smed_start_action, name='smed_start_action'),

@@ -50,7 +50,13 @@ urlpatterns = [
     path('administration/settings/', views.admin_settings, name='admin_settings'),
     path('administration/gateways/', views.admin_gateways, name='admin_gateways'),
     path('administration/integrations/', views.admin_integrations, name='admin_integrations'),
+    path('administration/integrations/ping/', views.admin_integrations_ping, name='admin_integrations_ping'),
     path('administration/audit/', views.admin_audit, name='admin_audit'),
+    path('administration/audit/export/csv/', views.admin_audit_export_csv, name='admin_audit_export_csv'),
+
+    # Observability & Health Probes
+    path('healthz/', views.healthz_view, name='healthz'),
+    path('status/', views.healthz_view, name='system_status'),
 
     # Controller / Simulation
     path('controller/', views.controller_home, name='controller_home'),

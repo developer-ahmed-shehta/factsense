@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}External Integrations &amp; Connectors · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-admin-integrations-page" style="max-width: 1200px; margin: 0 auto;">
+
+  <div class="fs-page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title" style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0;">
+        {% if is_rtl %}التكامل الخارجي والقنوات البرمجية (Integrations){% else %}External Integrations &amp; Connectors{% endif %}
+      </h1>
+      <p class="fs-page-subtitle" style="font-size: 13px; color: #64748B; margin-top: 4px;">
+        {% if is_rtl %}إدارة موصلات أنظمة ERP، قنوات إشعارات Telegram، محرك الذكاء الصناعي، وبوابات Moxa Edge.{% else %}Manage ERP JSON-RPC sync, Telegram notification bots, AI Copilot cloud connectivity, and IoT edge hardware.{% endif %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 8px;">
+      <form method="POST" action="{% url 'admin_integrations_ping' %}" style="display: inline; margin: 0;">
+        {% csrf_token %}
+        <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A;">
+          {% if is_rtl %}اختبار اتصال كافة القنوات (Test Ping){% else %}Test Ping All Connectors{% endif %}
+        </button>
+      </form>
+      <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
+        {% if is_rtl %}العودة للإدارة{% else %}Back to Admin{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; margin-bottom: 24px;">
+
+    <!-- 1. Odoo 17 MRP JSON-RPC Connector -->
+    <div class="fs-table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0;">Odoo 17 MRP JSON-RPC</h3>
+            <span style="font-size: 12px; color: #64748B;">Manufacturing Orders (MO) Adapter</span>
+          </div>
+          <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+            CONFIGURED &amp; ACTIVE
+          </span>
+        </div>
+        <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 16px;">
+          Synchronizes production orders bidirectionally. Discrepancies are routed to the MES Conflict Queue with manual review before floor overrides.
+        </p>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; font-size: 12px; font-family: monospace; color: #334155; margin-bottom: 16px;">
+          Endpoint: <strong>http://localhost:8069/jsonrpc</strong><br>
+          Protocol: <strong>JSON-RPC 2.0 / MRP API</strong><br>
+          Last Synced: <strong>{{ last_sync.started_at|date:"Y-m-d H:i"|default:"Recent" }}</strong>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'work_orders_erp_sync' %}" class="fs-btn fs-btn-secondary" style="width: 100%; text-align: center;">
+          Open ERP Sync Queue
+        </a>
+      </div>
+    </div>
+
+    <!-- 2. Telegram Bot Notifications -->
+    <div class="fs-table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0;">Telegram Notifications</h3>
+            <span style="font-size: 12px; color: #64748B;">Shift Reports &amp; Escalation Bot</span>
+          </div>
+          <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+            STANDBY READY
+          </span>
+        </div>
+        <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 16px;">
+          Delivers PDF Shift Handover briefs, hourly downtime Pareto digests, and urgent maintenance calls to plant channels.
+        </p>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; font-size: 12px; font-family: monospace; color: #334155; margin-bottom: 16px;">
+          Bot Username: <strong>@factsense_demo_bot</strong><br>
+          Target Channel: <strong>@factsense_cairo_ops</strong><br>
+          Active Subscriptions: <strong>{{ subscriptions_count }}</strong>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'reports_subscriptions' %}" class="fs-btn fs-btn-secondary" style="width: 100%; text-align: center;">
+          Manage Subscriptions
+        </a>
+      </div>
+    </div>
+
+    <!-- 3. Google Gemini AI Engine -->
+    <div class="fs-table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0;">Industrial AI Copilot Engine</h3>
+            <span style="font-size: 12px; color: #64748B;">Dual-Engine Natural Language</span>
+          </div>
+          {% if has_gemini_key %}
+            <span class="fs-role-tag" style="background: #DBEAFE; color: #1D4ED8; font-weight: 700;">
+              CLOUD ENGINE (GEMINI)
+            </span>
+          {% else %}
+            <span class="fs-role-tag" style="background: #F1F5F9; color: #475569; font-weight: 700;">
+              OFFLINE HEURISTIC (100% LOCAL)
+            </span>
+          {% endif %}
+        </div>
+        <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 16px;">
+          Bilingual conversational assistant answering scoped queries on OEE, bottlenecks, stops, giveaway, and work orders in English and Arabic.
+        </p>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; font-size: 12px; font-family: monospace; color: #334155; margin-bottom: 16px;">
+          Active Engine: <strong>{% if has_gemini_key %}Google Gemini 1.5 Flash{% else %}Deterministic Python Heuristic{% endif %}</strong><br>
+          Language Mode: <strong>Bilingual (EN / AR)</strong><br>
+          Total Conversations: <strong>{{ chat_sessions_count }}</strong>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'copilot_home' %}" class="fs-btn fs-btn-secondary" style="width: 100%; text-align: center;">
+          Open Industrial Copilot
+        </a>
+      </div>
+    </div>
+
+    <!-- 4. Moxa Edge Gateway & Kiosks -->
+    <div class="fs-table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0;">Moxa Edge Gateways &amp; Kiosks</h3>
+            <span style="font-size: 12px; color: #64748B;">Hardware Token Enrollment (F19)</span>
+          </div>
+          <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+            {{ active_kiosks }} ACTIVE / {{ pending_kiosks }} PENDING
+          </span>
+        </div>
+        <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 16px;">
+          Shop-floor operator tablets and hardware pulse ingestion gateways paired with machine sequence nodes via 8-character claim codes.
+        </p>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; font-size: 12px; font-family: monospace; color: #334155; margin-bottom: 16px;">
+          Enrolled Gateways: <strong>{{ active_kiosks }}</strong><br>
+          Hardware Tokens: <strong>Exclusive 1-to-1 Device Pairing</strong><br>
+          Watchdog Protocol: <strong>1 Hz SSE Heartbeat</strong>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'kiosk_pairing' %}" class="fs-btn fs-btn-secondary" style="width: 100%; text-align: center;">
+          Pair New Gateway / Kiosk
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+

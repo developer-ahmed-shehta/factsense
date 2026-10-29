@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: factsense_mes_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-factsense-production-secret-key-change-me}
+      - DEBUG=False
+      - ALLOWED_HOSTS=*
+      - DATABASE_URL=postgresql://factsense_user:factory_pass_2026@db:5432/factsense_prod
+      - REDIS_URL=redis://redis:6379/1
+      - PLANT_TIMEZONE=Africa/Cairo
+      - DEFAULT_LANGUAGE=en
+      - DEFAULT_CURRENCY=EGP
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-@factsense_cairo_ops}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  db:
+    image: postgres:16-alpine
+    container_name: factsense_postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: factsense_prod
+      POSTGRES_USER: factsense_user
+      POSTGRES_PASSWORD: factory_pass_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factsense_user -d factsense_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: factsense_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+

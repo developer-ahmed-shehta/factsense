@@ -6,8 +6,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
 from apps.accounts import views as account_views
+from apps.portal import views as portal_views
 
 urlpatterns = [
+    # Health checks & Observability Probes
+    path('healthz/', portal_views.healthz_view, name='healthz_root'),
+    path('status/', portal_views.healthz_view, name='status_root'),
+
     # Root entrypoint
     path('', account_views.role_landing_view, name='root'),
     

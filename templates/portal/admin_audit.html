@@ -3,22 +3,88 @@
 {% block title %}System Audit Trail · {{ BRAND_NAME }}{% endblock %}
 
 {% block content %}
-<div class="fs-admin-audit-page">
+<div class="fs-admin-audit-page" style="max-width: 1400px; margin: 0 auto;">
 
-  <div class="fs-page-header">
+  <div class="fs-page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
     <div class="fs-page-title-wrap">
-      <h1 class="fs-page-title">System Audit Trail</h1>
-      <p class="fs-page-subtitle">Security log recording actor, active role persona, scope, action, and timestamp.</p>
+      <h1 class="fs-page-title" style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0;">
+        {% if is_rtl %}سجل المراقبة والتدقيق الأمني (Audit Trail){% else %}System Audit Trail{% endif %}
+      </h1>
+      <p class="fs-page-subtitle" style="font-size: 13px; color: #64748B; margin-top: 4px;">
+        {% if is_rtl %}سجل أمني غير قابل للتعديل يوثق هوية المستخدم، الدور التشغيلي، المعاملة والوقت الزمني بدقة.{% else %}Immutable security log tracking user identity, active role persona, operational scope, and timestamps.{% endif %}
+      </p>
     </div>
 
-    <div class="fs-page-actions">
+    <div class="fs-page-actions" style="display: flex; gap: 8px;">
+      <a href="{% url 'admin_audit_export_csv' %}?action={{ selected_action|default:'' }}&actor={{ selected_actor|default:'' }}&q={{ search_query|default:'' }}" class="fs-btn fs-btn-secondary fs-btn-sm" style="font-weight: 600;">
+        {% if is_rtl %}تصدير السجل كملف CSV{% else %}Export CSV{% endif %}
+      </a>
       <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
-        Back to Admin
+        {% if is_rtl %}العودة للإدارة{% else %}Back to Admin{% endif %}
       </a>
     </div>
   </div>
 
+  <!-- Filter & Search Bar -->
+  <div class="fs-table-card" style="padding: 16px 20px; margin-bottom: 20px;">
+    <form method="GET" action="{% url 'admin_audit' %}" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 0;">
+      
+      <!-- Filter by Action -->
+      <div style="flex: 1; min-width: 180px;">
+        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px;">Action</label>
+        <select name="action" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+          <option value="">All Actions ({{ distinct_actions|length }})</option>
+          {% for act in distinct_actions %}
+            <option value="{{ act }}" {% if selected_action == act %}selected{% endif %}>{{ act }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Filter by Actor -->
+      <div style="flex: 1; min-width: 180px;">
+        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px;">Actor</label>
+        <select name="actor" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+          <option value="">All Users</option>
+          {% for u in users %}
+            <option value="{{ u.username }}" {% if selected_actor == u.username %}selected{% endif %}>{{ u.username }} ({{ u.get_full_name|default:u.username }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Search Keyword -->
+      <div style="flex: 2; min-width: 220px;">
+        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px;">Search Details / Resource</label>
+        <input type="text" name="q" value="{{ search_query|default:'' }}" placeholder="Filter by machine, ticket ID, or keyword..." style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+      </div>
+
+      <div style="align-self: flex-end;">
+        <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A; height: 38px; padding: 0 16px;">
+          Filter Records
+        </button>
+      </div>
+
+      {% if selected_action or selected_actor or search_query %}
+        <div style="align-self: flex-end;">
+          <a href="{% url 'admin_audit' %}" class="fs-btn fs-btn-secondary" style="height: 38px; padding: 0 14px; display: inline-flex; align-items: center;">
+            Reset Filters
+          </a>
+        </div>
+      {% endif %}
+
+    </form>
+  </div>
+
+  <!-- Records Table -->
   <div class="fs-table-card">
+    <div style="padding: 12px 20px; border-bottom: 1px solid #E2E8F0; background: #F8FAFC; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 12px; font-weight: 700; color: #475569;">
+        Showing {{ audit_events|length }} Recent Audit Records
+      </span>
+      <span style="font-size: 11px; color: #64748B;">
+        Total Stored: {{ total_count }}
+      </span>
+    </div>
+
     <div class="fs-table-responsive">
       <table class="fs-table">
         <thead>
@@ -49,10 +115,10 @@
                 <span class="font-mono" style="font-weight: 600; color: #0F172A;">{{ ev.action }}</span>
               </td>
               <td>
-                <span style="font-size: 13px;">{{ ev.resource }}</span>
+                <span style="font-size: 13px;">{{ ev.resource }}{% if ev.resource_id %} #{{ ev.resource_id }}{% endif %}</span>
               </td>
               <td>
-                <code class="font-mono" style="font-size: 11px; color: var(--fs-text-secondary); max-width: 300px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <code class="font-mono" style="font-size: 11px; color: var(--fs-text-secondary); max-width: 400px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   {{ ev.details }}
                 </code>
               </td>
@@ -60,7 +126,7 @@
           {% empty %}
             <tr>
               <td colspan="6" style="text-align: center; color: var(--fs-text-muted); padding: 32px;">
-                No audit events recorded yet.
+                No audit events match the selected criteria.
               </td>
             </tr>
           {% endfor %}
