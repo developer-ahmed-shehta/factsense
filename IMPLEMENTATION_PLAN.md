@@ -68,6 +68,7 @@ As established in Section 1 and Section 12 of the Master Specification, the foll
 
 ---
 
+
 ## 4. Master Feature Checklist (F01 – F20)
 
 - [x] **F01: Factory Hierarchy & Master Data** — Factory, Line, Machine hierarchy, SKU, rates, shifts, taxonomies. *(Batch 2)*
