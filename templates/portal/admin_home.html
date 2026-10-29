@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-admin-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Factory Hierarchy, Scoped Personas, Gateways & Security Audit
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge" style="background: #D1FAE5; color: #065F46; border-color: #A7F3D0;">
+        <span>Batch 1 Active &bull; Admin Console</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Admin Quick Navigation Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <a href="{% url 'admin_users' %}" class="fs-table-card" style="padding: 20px; text-decoration: none; color: inherit; display: block; transition: all 0.15s;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span class="fs-role-tag">Core Security</span>
+      </div>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 4px;">User Provisioning & Scopes</h3>
+      <p style="font-size: 13px; color: var(--fs-text-secondary);">Manage users, plant assignments, RFID badges, and language settings.</p>
+    </a>
+
+    <a href="{% url 'admin_roles' %}" class="fs-table-card" style="padding: 20px; text-decoration: none; color: inherit; display: block; transition: all 0.15s;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span class="fs-role-tag">10 Canonical</span>
+      </div>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 4px;">Canonical Roles Directory</h3>
+      <p style="font-size: 13px; color: var(--fs-text-secondary);">Inspect role boundaries, default landings, and English/Arabic titles.</p>
+    </a>
+
+    <a href="{% url 'admin_audit' %}" class="fs-table-card" style="padding: 20px; text-decoration: none; color: inherit; display: block; transition: all 0.15s;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span class="fs-role-tag">Compliance</span>
+      </div>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 4px;">System Audit Trail</h3>
+      <p style="font-size: 13px; color: var(--fs-text-secondary);">Review user authentication events, persona switches, and data mutations.</p>
+    </a>
+
+    <a href="{% url 'products_list' %}" class="fs-table-card" style="padding: 20px; text-decoration: none; color: inherit; display: block; transition: all 0.15s;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span class="fs-role-tag" style="background: #DCFCE7; color: #15803D;">Batch 1 Delivered</span>
+      </div>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 4px;">Product Management</h3>
+      <p style="font-size: 13px; color: var(--fs-text-secondary);">Reference SKU table with cycle times, processes, and design links.</p>
+    </a>
+  </div>
+
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Administration Roadmap & Scheduled Deliverables
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      Additional administrative tools will be delivered across Batches 2 and 8:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

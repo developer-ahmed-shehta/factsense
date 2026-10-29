@@ -1,0 +1,92 @@
+{% load static i18n %}
+<header class="fs-navbar">
+  <div class="fs-navbar-container">
+    <!-- Navbar Left: Brand text "Master" (or Role Title) + Plain Horizontal Navigation Links -->
+    <div class="fs-navbar-left">
+      <a href="{% url 'role_landing' %}" class="fs-brand-title">
+        {% if active_role == 'planner' or active_role == 'admin' %}
+          Master
+        {% elif is_rtl and active_role_obj.name_ar %}
+          {{ active_role_obj.name_ar }}
+        {% else %}
+          {{ active_role_obj.name|default:'FactSense' }}
+        {% endif %}
+      </a>
+
+      <!-- Horizontal Navigation Links matching Reference Screenshot -->
+      <nav aria-label="Main Navigation">
+        <ul class="fs-nav-links">
+          {% if nav %}
+            {% for item in nav.primary %}
+              <li>
+                <a href="{{ item.url }}" class="fs-nav-link {% if item.is_active %}active{% endif %}">
+                  {{ item.label }}
+                </a>
+              </li>
+            {% endfor %}
+            {% if nav.has_more %}
+              <li class="fs-dropdown">
+                <a href="javascript:void(0)" class="fs-nav-link">
+                  {% trans "More" %}
+                </a>
+                <div class="fs-dropdown-menu">
+                  {% for item in nav.more %}
+                    <a href="{{ item.url }}" class="fs-dropdown-item">
+                      {{ item.label }}
+                    </a>
+                  {% endfor %}
+                </div>
+              </li>
+            {% endif %}
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+
+    <!-- Navbar Right: Blue Language Pill + Red Logout Pill (matching Reference Screenshot) -->
+    <div class="fs-navbar-right">
+      <!-- Language Pill Switcher: Blue rounded-full pill button -->
+      {% if lang == 'ar' %}
+        <a href="{% url 'set_language' %}?lang=en" class="fs-pill-lang" title="Switch to English">
+          EN
+        </a>
+      {% else %}
+        <a href="{% url 'set_language' %}?lang=ar" class="fs-pill-lang" title="التحويل إلى العربية">
+          عربي
+        </a>
+      {% endif %}
+
+      <!-- Logout Pill Button matching Screenshot: Red rounded-full pill "Logout (role)" -->
+      {% if request.user.is_authenticated %}
+        <div class="fs-role-switch-wrap">
+          <a href="{% url 'logout' %}" class="fs-pill-logout" title="{% trans 'Sign Out' %}">
+            {% trans "Logout" %} ({{ active_role|default:'user' }})
+          </a>
+
+          <!-- Multi-Role Persona Switcher Dropdown (for multi-role users like lead_tech) -->
+          {% if has_multiple_roles %}
+            <div class="fs-role-switch-menu">
+              <div style="padding: 6px 14px 4px; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase;">
+                {% trans "Switch Role Persona" %}
+              </div>
+              {% for r in user_roles %}
+                <form method="POST" action="{% url 'switch_role' %}" style="margin: 0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="role_code" value="{{ r.code }}">
+                  <button type="submit" class="fs-dropdown-item" style="width: 100%; border: none; background: none; text-align: start; cursor: pointer; {% if active_role == r.code %}font-weight: 700; color: #2563EB;{% endif %}">
+                    {% if active_role == r.code %}• {% endif %}
+                    {% if is_rtl and r.name_ar %}{{ r.name_ar }}{% else %}{{ r.name }}{% endif %}
+                  </button>
+                </form>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <a href="{% url 'login' %}" class="fs-pill-logout" style="background-color: #2563EB;">
+          {% trans "Sign In" %}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</header>

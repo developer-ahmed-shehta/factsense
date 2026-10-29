@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-quality-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; ISO 22400-2 SPC, Gaussian Bell Curves & Giveaway Optimization
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge">
+        <span>Batch 5 &bull; Quality SPC Delivery</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Quality Assurance & Weight SPC Control Hub (Batch 5 Scope)
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      Statistical Process Control (X-bar/R charts), Gaussian distributions, Cp/Cpk indices, and overfill product giveaway financial calculations will be delivered in <strong>Batch 5</strong>:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

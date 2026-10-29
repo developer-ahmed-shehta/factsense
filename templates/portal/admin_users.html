@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-admin-users-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">User Provisioning & Scopes</h1>
+      <p class="fs-page-subtitle">Configured industrial user accounts and plant role assignments.</p>
+    </div>
+
+    <div class="fs-page-actions">
+      <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
+        Back to Admin
+      </a>
+    </div>
+  </div>
+
+  <div class="fs-table-card">
+    <div class="fs-table-responsive">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Full Name (English / Arabic)</th>
+            <th>Assigned Role Personas</th>
+            <th>Plant Scopes</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr>
+              <td>
+                <code class="font-mono" style="font-weight: 600; color: #0F172A;">{{ u.username }}</code>
+                {% if u.is_superuser %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; border-color: #FECACA;">Superuser</span>
+                {% endif %}
+              </td>
+              <td>
+                <div style="font-weight: 600;">{{ u.get_full_name|default:u.username }}</div>
+                {% if u.arabic_name %}
+                  <div style="font-size: 12px; color: var(--fs-text-secondary);">{{ u.arabic_name }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <div class="fs-pills-wrap">
+                  {% for a in u.role_assignments.all %}
+                    <span class="fs-role-tag">
+                      {{ a.role.name }}
+                    </span>
+                  {% empty %}
+                    {% if u.is_superuser %}
+                      <span class="fs-role-tag">Admin (Superuser)</span>
+                    {% else %}
+                      <span style="color: var(--fs-text-muted); font-size: 12px;">No active roles</span>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </td>
+              <td>
+                <div style="font-size: 12px; color: var(--fs-text-secondary);">
+                  {% for a in u.role_assignments.all %}
+                    <div>
+                      {% if a.factory %}Plant: {{ a.factory.code }}{% endif %}
+                      {% if a.line %}| Line: {{ a.line.code }}{% endif %}
+                      {% if a.machine %}| Mach: {{ a.machine.code }}{% endif %}
+                      {% if not a.factory and not a.line and not a.machine %}Global{% endif %}
+                    </div>
+                  {% empty %}
+                    Global
+                  {% endfor %}
+                </div>
+              </td>
+              <td>
+                {% if u.is_active %}
+                  <span class="fs-process-pill" style="background: #D1FAE5; color: #065F46;">Active</span>
+                {% else %}
+                  <span class="fs-process-pill" style="background: #FEE2E2; color: #991B1B;">Inactive</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

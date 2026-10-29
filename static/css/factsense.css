@@ -1,0 +1,578 @@
+/* ==============================================================================
+   FactSense Design System — CSS Tokens & UI Foundations
+   Industrial MES & IIoT Light Interface strictly matching Reference Screenshot
+   Version 1.2 · October 2026
+============================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Surface & Background */
+  --fs-bg: #F8FAFC;
+  --fs-surface: #FFFFFF;
+  --fs-surface-alt: #F1F5F9;
+  --fs-border: #E5E7EB;
+  --fs-border-light: #F1F5F9;
+
+  /* Typography */
+  --fs-text-primary: #111827;
+  --fs-text-secondary: #6B7280;
+  --fs-text-muted: #9CA3AF;
+
+  /* Brand & Actions matching Screenshot */
+  --fs-brand: #2563EB;
+  --fs-brand-hover: #1D4ED8;
+  
+  --fs-btn-primary: #16A34A;
+  --fs-btn-primary-hover: #15803D;
+
+  --fs-btn-danger: #DC2626;
+  --fs-btn-danger-hover: #B91C1C;
+
+  /* Process Pills (Reference Screenshot: light blue pill with thin border) */
+  --fs-process-pill-bg: #EFF6FF;
+  --fs-process-pill-border: #BFDBFE;
+  --fs-process-pill-text: #1D4ED8;
+
+  /* Fonts */
+  --fs-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --fs-font-arabic: 'Cairo', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --fs-font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--fs-font-sans);
+  background-color: var(--fs-bg);
+  color: var(--fs-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+[dir="rtl"] body {
+  font-family: var(--fs-font-arabic);
+}
+
+.font-mono, .tabular-nums {
+  font-family: var(--fs-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==============================================================================
+   Top Navigation Bar (Pixel-Perfect to Screenshot Image 1)
+============================================================================== */
+.fs-navbar {
+  background-color: #FFFFFF;
+  border-bottom: 1px solid var(--fs-border);
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.fs-navbar-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fs-navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+/* Brand Title: Simple blue bold text matching Screenshot "Master" */
+.fs-brand-title {
+  color: #2563EB;
+  font-size: 19px;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: -0.3px;
+}
+
+/* Plain text horizontal navigation links */
+.fs-nav-links {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  gap: 22px;
+}
+.fs-nav-link {
+  color: #4B5563;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+.fs-nav-link:hover {
+  color: #111827;
+}
+.fs-nav-link.active {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Dropdown */
+.fs-dropdown {
+  position: relative;
+}
+.fs-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-start: 0;
+  background: #FFFFFF;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  min-width: 180px;
+  padding: 6px 0;
+  display: none;
+  z-index: 200;
+}
+.fs-dropdown:hover .fs-dropdown-menu {
+  display: block;
+}
+.fs-dropdown-item {
+  display: block;
+  padding: 8px 16px;
+  color: #4B5563;
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.1s;
+}
+.fs-dropdown-item:hover {
+  background-color: #F8FAFC;
+  color: #111827;
+}
+
+/* Navbar Right Utilities matching Screenshot: Solid Blue EN pill + Solid Red Logout pill */
+.fs-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Language Pill Button */
+.fs-pill-lang {
+  background-color: #2563EB;
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 16px;
+  border-radius: 9999px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+.fs-pill-lang:hover {
+  background-color: #1D4ED8;
+}
+
+/* Logout Pill Button */
+.fs-pill-logout {
+  background-color: #DC2626;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 16px;
+  border-radius: 9999px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+.fs-pill-logout:hover {
+  background-color: #B91C1C;
+}
+
+/* Multi-Role Switcher Menu */
+.fs-role-switch-wrap {
+  position: relative;
+}
+.fs-role-switch-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  background: #FFFFFF;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  padding: 8px 0;
+  display: none;
+  z-index: 250;
+}
+.fs-role-switch-wrap:hover .fs-role-switch-menu,
+.fs-role-switch-wrap.open .fs-role-switch-menu {
+  display: block;
+}
+
+/* ==============================================================================
+   Main Content Layout
+============================================================================== */
+.fs-main {
+  flex: 1;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Page Header Structure (Reference Screenshot: Title, Subtitle, Green Action Button) */
+.fs-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.fs-page-title-wrap {
+  flex: 1;
+  min-width: 260px;
+}
+.fs-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+.fs-page-subtitle {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+/* Green "Add Product" button (Reference Screenshot) */
+.fs-btn-add {
+  background-color: #16A34A;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 6px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+.fs-btn-add:hover {
+  background-color: #15803D;
+}
+
+.fs-btn-secondary {
+  background-color: #FFFFFF;
+  color: #374151;
+  border: 1px solid var(--fs-border);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.fs-btn-secondary:hover {
+  background-color: #F8FAFC;
+}
+
+/* ==============================================================================
+   Wide White Data Table (Reference Screenshot Pixel-Perfect)
+============================================================================== */
+.fs-table-card {
+  background: #FFFFFF;
+  border: 1px solid var(--fs-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+.fs-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+.fs-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.fs-table th {
+  background-color: #FFFFFF;
+  color: #9CA3AF;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--fs-border);
+  white-space: nowrap;
+}
+.fs-table td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #111827;
+  border-bottom: 1px solid var(--fs-border-light);
+  vertical-align: middle;
+}
+.fs-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+.fs-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+.fs-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Column Specific Alignments matching Screenshot */
+.fs-col-center {
+  text-align: center;
+}
+.fs-col-end {
+  text-align: end;
+}
+
+/* Process Pills (Reference Screenshot: light blue with subtle border) */
+.fs-pills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fs-process-pill {
+  display: inline-flex;
+  align-items: center;
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+/* Actions matching Screenshot: "Edit" in blue, "Delete" in red */
+.fs-action-edit {
+  color: #2563EB;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.fs-action-edit:hover {
+  text-decoration: underline;
+}
+.fs-action-delete {
+  color: #DC2626;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-inline-start: 12px;
+}
+.fs-action-delete:hover {
+  text-decoration: underline;
+}
+
+/* Design Link with external icon matching Screenshot */
+.fs-design-link {
+  color: #2563EB;
+  text-decoration: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fs-design-link:hover {
+  text-decoration: underline;
+}
+
+/* Search bar */
+.fs-search-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fs-search-input {
+  width: 100%;
+  max-width: 380px;
+  padding: 8px 14px;
+  font-size: 13px;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  background-color: #FFFFFF;
+  color: #111827;
+  outline: none;
+}
+.fs-search-input:focus {
+  border-color: #2563EB;
+}
+
+/* Modals */
+.fs-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 16px;
+}
+.fs-modal {
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--fs-border);
+}
+.fs-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--fs-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fs-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+.fs-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: #9CA3AF;
+  cursor: pointer;
+}
+.fs-modal-body {
+  padding: 20px;
+}
+.fs-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--fs-border);
+  background: #F8FAFC;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.fs-form-group {
+  margin-bottom: 14px;
+}
+.fs-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 5px;
+}
+.fs-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  outline: none;
+}
+.fs-input:focus {
+  border-color: #2563EB;
+}
+
+/* Batch Roadmap Cards */
+.fs-batch-card {
+  background: #FFFFFF;
+  border: 1px solid var(--fs-border);
+  border-radius: 8px;
+  padding: 28px;
+}
+.fs-batch-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid #FCD34D;
+}
+.fs-roadmap-list {
+  list-style: none;
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.fs-roadmap-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #F8FAFC;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #111827;
+}
+
+/* Alerts */
+.fs-alert {
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fs-alert-success { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+.fs-alert-error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
+.fs-alert-info { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+
+/* Footer */
+.fs-footer {
+  margin-top: auto;
+  background: #FFFFFF;
+  border-top: 1px solid var(--fs-border);
+  padding: 16px 24px;
+  font-size: 12px;
+  color: #6B7280;
+}
+.fs-footer-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}

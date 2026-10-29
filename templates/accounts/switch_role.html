@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Switch Role Persona" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 560px; margin: 40px auto;">
+  <div class="fs-table-card" style="padding: 32px;">
+    
+    <div style="margin-bottom: 24px;">
+      <h1 class="fs-page-title" style="font-size: 20px;">{% trans "Switch Role Persona" %}</h1>
+      <p class="fs-page-subtitle">
+        {% trans "Current Persona" %}: 
+        <strong style="color: var(--fs-brand);">{{ active_role_obj.name|default:active_role }}</strong>
+      </p>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      {% trans "Select one of your authorized roles below. Switching personas updates your navigation, workspace home, and permitted actions immediately without re-authenticating:" %}
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      {% for r in user_roles %}
+        <form method="POST" action="{% url 'switch_role' %}" style="margin: 0;">
+          {% csrf_token %}
+          <input type="hidden" name="role_code" value="{{ r.code }}">
+          <button type="submit" 
+                  class="fs-btn fs-btn-secondary" 
+                  style="width: 100%; justify-content: space-between; padding: 12px 18px; text-align: start; {% if active_role == r.code %}border-color: var(--fs-brand); background: var(--fs-brand-light);{% endif %}">
+            <div>
+              <div style="font-weight: 600; color: var(--fs-text-primary);">{{ r.name }} {% if r.name_ar %}({{ r.name_ar }}){% endif %}</div>
+              <div style="font-size: 12px; color: var(--fs-text-secondary);">Landing: {{ r.default_landing }}</div>
+            </div>
+            {% if active_role == r.code %}
+              <span class="fs-role-tag" style="background: #2563EB; color: #FFFFFF; border-color: #2563EB;">{% trans "ACTIVE" %}</span>
+            {% else %}
+              <span class="fs-role-tag">{% trans "Switch" %}</span>
+            {% endif %}
+          </button>
+        </form>
+      {% endfor %}
+    </div>
+
+    <div style="margin-top: 24px; text-align: end;">
+      <a href="{% url 'role_landing' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
+        {% trans "Cancel" %}
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="{{ lang|default:'en' }}" dir="{% if is_rtl %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ page_title|default:'Dashboard' }}{% endblock %} · {{ BRAND_NAME }}</title>
+  <meta name="description" content="FactSense Smart Industrial MES and IIoT Platform">
+  <link rel="stylesheet" href="{% static 'css/factsense.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- Reusable Horizontal Topbar (Matches Reference Screenshot) -->
+  {% include 'components/navbar.html' %}
+
+  <!-- Main Viewport -->
+  <main class="fs-main">
+    <!-- Flash Messages -->
+    {% if messages %}
+      <div class="fs-messages-container">
+        {% for message in messages %}
+          <div class="fs-alert fs-alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+            <span>{{ message }}</span>
+            <button type="button" class="fs-modal-close" onclick="this.parentElement.remove()">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Page Content -->
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="fs-footer">
+    <div class="fs-footer-container">
+      <div>
+        <strong>{{ BRAND_NAME }}</strong> · {{ BRAND_TAGLINE }} · <span class="font-mono">{{ APP_VERSION }}</span>
+      </div>
+      <div>
+        &copy; {{ CURRENT_YEAR }} FactSense Manufacturing Intelligence. {{ t.all_rights_reserved|default:'Industrial Grade MES' }}
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal Overlays -->
+  {% block modals %}{% endblock %}
+
+  <!-- Core Interactive Script -->
+  <script>
+    // Simple dropdown handling
+    document.addEventListener('click', function(e) {
+      const userBtn = e.target.closest('.fs-user-btn');
+      const userMenu = document.querySelector('.fs-user-menu');
+      if (userBtn) {
+        userBtn.parentElement.classList.toggle('open');
+      } else if (userMenu && !e.target.closest('.fs-user-dropdown')) {
+        document.querySelectorAll('.fs-user-dropdown').forEach(d => d.classList.remove('open'));
+      }
+
+      // Close modal on backdrop click
+      if (e.target.classList.contains('fs-modal-backdrop')) {
+        e.target.style.display = 'none';
+      }
+    });
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

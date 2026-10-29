@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-operator-page">
+
+  <!-- Operator Console Touch Header -->
+  <div class="fs-page-header" style="background: var(--fs-surface); padding: 20px 24px; border-radius: var(--fs-radius-lg); border: 1px solid var(--fs-border); margin-bottom: 24px;">
+    <div class="fs-page-title-wrap">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+        <span class="fs-role-tag" style="background: #10B981; color: #FFFFFF; border-color: #10B981; font-weight: 700;">
+          RUNNING
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0;">
+          Machine #FL-01 &bull; Isobaric Filler 01
+        </h1>
+      </div>
+      <p class="fs-page-subtitle">
+        Operator: <strong>{{ request.user.get_display_name }}</strong> &bull; Line: <strong>LINE-01 (PET Line 1)</strong> &bull; Active Shift: <strong>Morning (07:00–15:00)</strong>
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge">
+        <span>Batch 4 &bull; Touch Kiosk Delivery</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Touch KPI Counter Previews (Ergonomic 48px+ Touch Layout) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="fs-table-card" style="padding: 20px; border-left: 4px solid #10B981;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Good Pieces Produced
+      </div>
+      <div class="fs-counter" style="font-size: 36px; font-weight: 700; color: #10B981; margin: 8px 0;">
+        14,820
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Shift Target: 18,000 &bull; Pacing: 96%
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px; border-left: 4px solid #EF4444;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Scrap / Defect Count
+      </div>
+      <div class="fs-counter" style="font-size: 36px; font-weight: 700; color: #EF4444; margin: 8px 0;">
+        48
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Defect Rate: 0.32% (Within 0.5% tolerance)
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px; border-left: 4px solid #2563EB;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Instantaneous Speed
+      </div>
+      <div class="fs-counter" style="font-size: 36px; font-weight: 700; color: #2563EB; margin: 8px 0;">
+        122 <span style="font-size: 18px; font-weight: 500;">CPM</span>
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Ideal Rated Speed: 120 CPM (101% Performance)
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch 4 Under-Development Roadmap Notice -->
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Operator Touch Console Roadmap (Batch 4 Scope)
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      Per specification precedence, full glove-friendly touch widgets and machine breakdown timers are scheduled for <strong>Batch 4</strong>:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

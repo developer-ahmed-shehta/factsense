@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-manager-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Executive Plant Intelligence, Loss Waterfalls & Financial Downtime Costs
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge">
+        <span>Batch 5 &bull; Executive Analytics Delivery</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Executive KPI Summary Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Line OEE (Overall)
+      </div>
+      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #2563EB; margin: 6px 0;">
+        86.4%
+      </div>
+      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
+        &uarr; +1.4% vs World-Class Target (85.0%)
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Availability (A)
+      </div>
+      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+        92.8%
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Downtime: 32 mins / 450 operating mins
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Performance (P)
+      </div>
+      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+        93.4%
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Rated CPM: 120 &bull; Actual CPM: 112
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Quality (Q)
+      </div>
+      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+        99.68%
+      </div>
+      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
+        Scrap: 48 pcs (Defect rate: 0.32%)
+      </div>
+    </div>
+  </div>
+
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Executive Management Overview & Dashboard Roadmap (Batch 5 Scope)
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      The TPM Six Big Losses financial waterfall, line benchmark gauges, shift pacing projections, and dynamic bottleneck detection will be delivered in <strong>Batch 5</strong>:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Canonical Roles Directory · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-admin-roles-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">Canonical Roles & Access Boundaries</h1>
+      <p class="fs-page-subtitle">The 10 canonical industrial roles defined in Section 3 of the Master Specification.</p>
+    </div>
+
+    <div class="fs-page-actions">
+      <a href="{% url 'admin_home' %}" class="fs-btn fs-btn-secondary fs-btn-sm">
+        Back to Admin
+      </a>
+    </div>
+  </div>
+
+  <div class="fs-table-card">
+    <div class="fs-table-responsive">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th>Role Code</th>
+            <th>English Title</th>
+            <th>Arabic Title</th>
+            <th>Default Landing</th>
+            <th>Description & Responsibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in roles %}
+            <tr>
+              <td>
+                <span class="fs-role-tag" style="font-weight: 700;">{{ r.code }}</span>
+              </td>
+              <td>
+                <strong>{{ r.name }}</strong>
+              </td>
+              <td style="font-family: var(--fs-font-arabic);">
+                {{ r.name_ar }}
+              </td>
+              <td>
+                <code class="font-mono" style="color: #2563EB;">{{ r.default_landing }}</code>
+              </td>
+              <td>
+                <span style="font-size: 13px; color: var(--fs-text-secondary);">{{ r.description }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

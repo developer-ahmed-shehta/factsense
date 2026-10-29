@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-supervisor-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Line 1: High-Speed PET Line &bull; Shift: Morning
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge">
+        <span>Batch 4 &bull; Floor Matrix Delivery</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Plant Status Glance Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Shift Output / Target
+      </div>
+      <div class="fs-counter" style="font-size: 28px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+        14,820 <span style="font-size: 15px; font-weight: 400; color: var(--fs-text-secondary);">/ 18,000 pcs</span>
+      </div>
+      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
+        82.3% Completed
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Line OEE (Bottleneck: FL-01)
+      </div>
+      <div class="fs-counter" style="font-size: 28px; font-weight: 700; color: #2563EB; margin: 6px 0;">
+        86.4%
+      </div>
+      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
+        Above Target (85.0%)
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Active Line Stoppages
+      </div>
+      <div class="fs-counter" style="font-size: 28px; font-weight: 700; color: #10B981; margin: 6px 0;">
+        0 <span style="font-size: 15px; font-weight: 400; color: var(--fs-text-secondary);">Active</span>
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        All 7 Line Machines Running
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
+        Open Maintenance Tickets
+      </div>
+      <div class="fs-counter" style="font-size: 28px; font-weight: 700; color: #F59E0B; margin: 6px 0;">
+        1 <span style="font-size: 15px; font-weight: 400; color: var(--fs-text-secondary);">Pending</span>
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        Technician Dispatched
+      </div>
+    </div>
+  </div>
+
+  <!-- Roadmap Card -->
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Supervisor Floor Matrix Roadmap (Batch 4 Scope)
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      The 20-machine interactive floor matrix, real-time bottleneck constraint detection, and 3-step shift handover wizard will be delivered in <strong>Batch 4</strong>:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

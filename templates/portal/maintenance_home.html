@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-maintenance-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Incident Kanban Board & Spares Dispatch
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <span class="fs-batch-badge">
+        <span>Batch 4 &bull; Maintenance Kanban Delivery</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Kanban Column Previews -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px;">
+    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #EF4444;">
+      <div style="font-weight: 700; font-size: 13px; color: #DC2626; margin-bottom: 8px;">OPEN (0)</div>
+      <p style="font-size: 12px; color: var(--fs-text-secondary);">No unassigned breakdown calls</p>
+    </div>
+
+    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #F59E0B;">
+      <div style="font-weight: 700; font-size: 13px; color: #D97706; margin-bottom: 8px;">ASSIGNED (1)</div>
+      <div style="background: var(--fs-surface-alt); padding: 8px; border-radius: 4px; font-size: 12px; border: 1px solid var(--fs-border);">
+        <strong>#TKT-1042</strong> &bull; CP-01 (Capper)<br>
+        <span style="color: var(--fs-text-secondary);">Torque head calibration</span>
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #2563EB;">
+      <div style="font-weight: 700; font-size: 13px; color: #2563EB; margin-bottom: 8px;">IN PROGRESS (0)</div>
+      <p style="font-size: 12px; color: var(--fs-text-secondary);">No active repairs clock-in</p>
+    </div>
+
+    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #8B5CF6;">
+      <div style="font-weight: 700; font-size: 13px; color: #7C3AED; margin-bottom: 8px;">WAITING SPARES (0)</div>
+      <p style="font-size: 12px; color: var(--fs-text-secondary);">No pending part orders</p>
+    </div>
+
+    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #10B981;">
+      <div style="font-weight: 700; font-size: 13px; color: #059669; margin-bottom: 8px;">RESOLVED (3)</div>
+      <p style="font-size: 12px; color: var(--fs-text-secondary);">Cleared today & verified</p>
+    </div>
+  </div>
+
+  <div class="fs-batch-card">
+    <div style="margin-bottom: 12px;">
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
+        Maintenance Kanban & Incident Board Roadmap (Batch 4 Scope)
+      </h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
+      The 5-stage drag-and-drop Kanban board, technician clock-in mobile sheet, mandatory root cause logging, and machine release safety lockouts will be delivered in <strong>Batch 4</strong>:
+    </p>
+
+    <ul class="fs-roadmap-list">
+      {% for feature in scheduled_features %}
+        <li class="fs-roadmap-item">
+          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span>{{ feature }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

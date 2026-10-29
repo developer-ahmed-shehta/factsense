@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}403 Forbidden · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 40px auto; text-align: center;">
+  <div class="fs-table-card" style="padding: 48px 32px;">
+    
+    <div style="width: 56px; height: 56px; background: #FEE2E2; color: #DC2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+    </div>
+
+    <h1 class="fs-page-title" style="margin-bottom: 8px;">
+      {% trans "Access Denied (403 Forbidden)" %}
+    </h1>
+
+    <p style="color: var(--fs-text-secondary); font-size: 15px; margin-bottom: 24px;">
+      {% trans "Your current active persona is not authorized to access this module or execute this action." %}
+    </p>
+
+    <div style="background: var(--fs-surface-alt); border: 1px solid var(--fs-border); border-radius: var(--fs-radius-md); padding: 16px; margin-bottom: 28px; text-align: start; font-size: 13px;">
+      <div style="margin-bottom: 6px;">
+        <span style="color: var(--fs-text-secondary);">{% trans "Attempted Path:" %}</span>
+        <code class="font-mono" style="color: #0F172A; font-weight: 600;">{{ attempted_path }}</code>
+      </div>
+      <div style="margin-bottom: 6px;">
+        <span style="color: var(--fs-text-secondary);">{% trans "Your Active Persona:" %}</span>
+        <span class="fs-role-tag">{{ active_role }}</span>
+      </div>
+      <div>
+        <span style="color: var(--fs-text-secondary);">{% trans "Authorized Personas:" %}</span>
+        <span class="font-mono" style="color: #2563EB;">{{ allowed_roles|join:', ' }}</span>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+      <a href="{% url 'role_landing' %}" class="fs-btn fs-btn-primary">
+        {% trans "Back to My Home" %}
+      </a>
+
+      {% if has_multiple_roles %}
+        <a href="{% url 'switch_role' %}" class="fs-btn fs-btn-secondary">
+          {% trans "Switch Role Persona" %}
+        </a>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Sign In" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 32px; align-items: start;">
+    
+    <!-- Standard Credentials Card -->
+    <div class="fs-table-card" style="padding: 32px;">
+      <div style="margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div class="fs-brand-logo">FS</div>
+          <h1 style="font-size: 22px; font-weight: 700; color: var(--fs-text-primary);">{{ BRAND_NAME }}</h1>
+        </div>
+        <p style="color: var(--fs-text-secondary); font-size: 13px;">
+          {% trans "Industrial MES & IIoT Platform" %} · {{ APP_VERSION }}
+        </p>
+      </div>
+
+      <form method="POST" action="{% url 'login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="username">{% trans "Username" %}</label>
+          <input type="text" id="username" name="username" class="fs-input" required autofocus placeholder="e.g. planner_demo">
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="password">{% trans "Password" %}</label>
+          <input type="password" id="password" name="password" class="fs-input" required placeholder="••••••••">
+          <div class="fs-help-text">Standard demo password: <code class="font-mono">Factsense@2026</code></div>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <button type="submit" class="fs-btn fs-btn-primary" style="width: 100%;">
+            {% trans "Sign In" %}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Quick Reviewer 1-Click Login Personas Card -->
+    <div class="fs-table-card" style="padding: 28px; background: #F8FAFC;">
+      <div style="margin-bottom: 12px;">
+        <h2 style="font-size: 16px; font-weight: 700; color: #0F172A;">
+          {% trans "Quick 1-Click Demo Personas" %}
+        </h2>
+      </div>
+      <p style="font-size: 13px; color: var(--fs-text-secondary); margin-bottom: 16px;">
+        {% trans "Click any persona below to authenticate instantly and review that role's authorized workspace:" %}
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        {% for persona in demo_personas %}
+          <a href="{% url 'quick_demo_login' persona.username %}" 
+             class="fs-btn fs-btn-secondary" 
+             style="justify-content: space-between; padding: 8px 14px; font-size: 13px; background: #FFFFFF;">
+            <span>{{ persona.label }}</span>
+            <span class="fs-role-tag">{{ persona.badge }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
