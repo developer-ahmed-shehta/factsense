@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if is_rtl %}مخزون قطع الغيار للصيانة{% else %}Spare Parts Inventory{% endif %} · {{ BRAND_NAME }}
+{% endblock %}
+
+{% block content %}
+<div class="fs-spares-page" style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Header -->
+  <div class="fs-page-header" style="background: #FFFFFF; padding: 20px 24px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <span class="fs-role-tag" style="background: #8B5CF6; color: #FFFFFF; font-weight: 700;">
+          MAINTENANCE INVENTORY
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0; color: #0F172A;">
+          {% if is_rtl %}مخزون قطع الغيار وطلبات التوريد (Spare Parts Requisitions){% else %}Spare Parts Inventory &amp; Requisitions Catalog{% endif %}
+        </h1>
+      </div>
+      <p class="fs-page-subtitle" style="color: #64748B; margin: 0;">
+        Track mechanical, electrical, and pneumatic spare parts stock levels, storage bins, and ticket delivery requests.
+      </p>
+    </div>
+
+    <div>
+      <a href="{% url 'maintenance_home' %}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}العودة للوحة كانبان{% else %}Kanban Incident Board{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Spare Parts Catalog Table -->
+  <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+    <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 16px;">
+      Spare Parts Stock Levels
+    </h2>
+
+    <table class="fs-table" style="font-size: 13px;">
+      <thead>
+        <tr>
+          <th>Part Number</th>
+          <th>Name / Description</th>
+          <th>Category</th>
+          <th>Storage Location</th>
+          <th>In-Stock Quantity</th>
+          <th>Min Level</th>
+          <th>Unit Cost</th>
+          <th>Stock Health</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sp in spares %}
+          <tr>
+            <td class="font-mono" style="font-weight: 700;">{{ sp.part_number }}</td>
+            <td style="font-weight: 700; color: #0F172A;">{{ sp.name }}</td>
+            <td><span class="fs-role-tag" style="background: #F1F5F9; color: #475569;">{{ sp.get_category_display }}</span></td>
+            <td class="font-mono">{{ sp.storage_location }}</td>
+            <td class="font-mono" style="font-size: 16px; font-weight: 800; color: {% if sp.is_low_stock %}#DC2626{% else %}#16A34A{% endif %};">
+              {{ sp.in_stock_quantity }}
+            </td>
+            <td class="font-mono">{{ sp.min_stock_level }}</td>
+            <td class="font-mono">{{ sp.unit_cost }} EGP</td>
+            <td>
+              {% if sp.is_low_stock %}
+                <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 800;">
+                  LOW STOCK REORDER
+                </span>
+              {% else %}
+                <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+                  ADEQUATE
+                </span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" style="text-align: center; color: #64748B;">No spare parts registered.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recent Requisitions Table with Deliver Action -->
+  <div class="fs-table-card" style="padding: 24px;">
+    <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 16px;">
+      Recent Ticket Spare Requisitions
+    </h2>
+
+    <table class="fs-table" style="font-size: 13px;">
+      <thead>
+        <tr>
+          <th>Requested At</th>
+          <th>Ticket Number</th>
+          <th>Spare Part</th>
+          <th>Quantity</th>
+          <th>Requested By</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requisitions %}
+          <tr>
+            <td class="font-mono">{{ r.requested_at|date:"Y-m-d H:i" }}</td>
+            <td class="font-mono" style="font-weight: 700;">{{ r.ticket.ticket_number }}</td>
+            <td style="font-weight: 600;">{{ r.part.part_number }} - {{ r.part.name }}</td>
+            <td class="font-mono" style="font-weight: 700;">{{ r.quantity }}x</td>
+            <td>{{ r.requested_by.get_display_name|default:"Technician" }}</td>
+            <td>
+              {% if r.status == 'REQUESTED' %}
+                <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700;">AWAITING DELIVERY</span>
+              {% elif r.status == 'ISSUED' %}
+                <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">ISSUED &amp; DELIVERED</span>
+              {% else %}
+                <span class="fs-role-tag" style="background: #F1F5F9; color: #64748B;">{{ r.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.status == 'REQUESTED' %}
+                <form method="POST" action="{% url 'maintenance_deliver_spare_action' %}" style="margin: 0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="requisition_id" value="{{ r.id }}">
+                  <button type="submit" class="fs-btn fs-btn-primary" style="padding: 4px 10px; font-size: 11px; background: #16A34A; border-color: #16A34A;">
+                    Deliver &amp; Resume SLA
+                  </button>
+                </form>
+              {% else %}
+                <span style="font-size: 11px; color: #64748B;">Delivered</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" style="text-align: center; color: #64748B;">No spare part requisitions found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
+

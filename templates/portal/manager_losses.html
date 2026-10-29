@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-losses-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% trans "ISO 22400 Operational Time Accounting & TPM Six Big Losses Waterfall Visualizer" %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 10px; align-items: center;">
+      <a href="{% url 'manager_home' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        &larr; {% trans "Back to Overview" %}
+      </a>
+    </div>
+  </div>
+
+  {% if dashboard.status == 'OK' %}
+    <!-- Summary Financial Callout -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Total Shift Opportunity Cost" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #DC2626; margin: 4px 0;">
+          ${{ dashboard.costing.total_loss_cost|floatformat:2 }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {% trans "Downtime loss + Scrap material loss" %}
+        </div>
+      </div>
+
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Downtime Opportunity Cost" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #EA580C; margin: 4px 0;">
+          ${{ dashboard.costing.downtime_opportunity_cost|floatformat:2 }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {{ dashboard.costing.total_downtime_minutes|floatformat:1 }} {% trans "lost operational minutes" %}
+        </div>
+      </div>
+
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Scrap Material Cost" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #7C3AED; margin: 4px 0;">
+          ${{ dashboard.costing.scrap_cost|floatformat:2 }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {{ dashboard.costing.total_scrap_pieces }} {% trans "defective units discarded" %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Waterfall Breakdown Table -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 16px 0;">
+        {% trans "Six Big Losses Minute & Financial Impact Breakdown" %}
+      </h3>
+
+      <div style="overflow-x: auto;">
+        <table class="fs-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>{% trans "Bucket #" %}</th>
+              <th>{% trans "Loss Name" %}</th>
+              <th>{% trans "OEE Factor" %}</th>
+              <th style="text-align: right;">{% trans "Duration" %}</th>
+              <th style="text-align: right;">{% trans "% of Shift" %}</th>
+              <th style="text-align: right;">{% trans "Financial Cost" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in dashboard.waterfall %}
+              <tr>
+                <td class="font-mono" style="font-weight: 700; color: var(--fs-text-secondary);">
+                  {{ forloop.counter }}
+                </td>
+                <td style="font-weight: 600; color: var(--fs-text-primary);">
+                  {{ item.name }}
+                </td>
+                <td>
+                  <span class="fs-pill font-mono" style="font-size: 11px;">
+                    {{ item.tpm_bucket }}
+                  </span>
+                </td>
+                <td class="font-mono" style="text-align: right; font-weight: 700;">
+                  {{ item.minutes|floatformat:1 }}m
+                </td>
+                <td class="font-mono" style="text-align: right;">
+                  {{ item.percent_of_ppt|floatformat:1 }}%
+                </td>
+                <td class="font-mono" style="text-align: right; font-weight: 700; color: {% if item.financial_cost > 0 %}#DC2626{% else %}var(--fs-text-secondary){% endif %};">
+                  ${{ item.financial_cost|floatformat:2 }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="fs-table-card" style="padding: 40px; text-align: center;">
+      <p style="font-size: 14px; color: var(--fs-text-secondary);">{% trans "No loss data available." %}</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+

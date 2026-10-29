@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if is_rtl %}مؤقت تبديل القوالب (SMED){% else %}Digital SMED 4-Phase Changeover{% endif %} · {{ BRAND_NAME }}
+{% endblock %}
+
+{% block content %}
+<div class="fs-smed-page" style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Header & Line Switcher -->
+  <div class="fs-page-header" style="background: #FFFFFF; padding: 20px 24px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <span class="fs-role-tag" style="background: #8B5CF6; color: #FFFFFF; font-weight: 700;">
+          SMED STANDARDIZATION
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0; color: #0F172A;">
+          {% if is_rtl %}مؤقت تبديل القوالب الرقمي (Single-Minute Exchange of Die){% else %}Digital SMED 4-Phase Changeover Stopwatch{% endif %}
+        </h1>
+      </div>
+      <p class="fs-page-subtitle" style="color: #64748B; margin: 0;">
+        Sequential 4-phase changeover methodology benchmarked against standard cycle times with ramp-up scrap tracking.
+      </p>
+    </div>
+
+    <!-- Line Selector -->
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <form method="GET" action="" style="display: inline-flex; align-items: center; gap: 8px; margin: 0;">
+        <label for="lineSelect" style="font-size: 12px; font-weight: 700; color: #64748B;">LINE:</label>
+        <select name="line" id="lineSelect" class="fs-form-select" onchange="this.form.submit()" style="min-width: 180px; font-size: 13px; font-weight: 600;">
+          {% for l in lines %}
+            <option value="{{ l.code }}" {% if selected_line and selected_line.code == l.code %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <a href="{% url 'operator_home' %}?line={{ selected_line.code }}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}لوحة المشغل{% else %}Operator Console{% endif %}
+      </a>
+    </div>
+  </div>
+
+  {% if selected_line %}
+
+    <!-- ACTIVE SMED CHANGEOVER TRACKER -->
+    {% if active_changeover %}
+      <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px; border-top: 6px solid #8B5CF6;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <span class="fs-role-tag" style="background: #8B5CF6; color: #FFFFFF; font-weight: 800; font-size: 13px; padding: 4px 10px;">
+              ACTIVE CHANGEOVER IN PROGRESS
+            </span>
+            <h2 style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 2px 0;">
+              Switching to: {{ active_changeover.to_product.name }} ({{ active_changeover.to_product.code }})
+            </h2>
+            <div style="font-size: 13px; color: #64748B;">
+              From SKU: {{ active_changeover.from_product.name|default:"Baseline" }} &bull; Started at: {{ active_changeover.started_at|date:"H:i:s" }} &bull; Operator: {{ active_changeover.operator.get_display_name|default:"Unassigned" }}
+            </div>
+          </div>
+
+          <!-- Total Target vs Elapsed -->
+          <div style="text-align: right;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">STANDARD TARGET</div>
+            <div class="font-mono" style="font-size: 28px; font-weight: 800; color: #0F172A;">
+              {{ active_changeover.target_duration_minutes }} <span style="font-size: 14px; color: #64748B;">min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Phase Progress Cards -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+          
+          <!-- Phase 1 -->
+          <div style="padding: 16px; border-radius: 8px; border: 2px solid {% if active_changeover.current_phase == 1 %}#8B5CF6; background: #F5F3FF;{% elif active_changeover.current_phase > 1 %}#10B981; background: #ECFDF5;{% else %}#E2E8F0; background: #F8FAFC;{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: {% if active_changeover.current_phase == 1 %}#8B5CF6{% elif active_changeover.current_phase > 1 %}#10B981{% else %}#94A3B8{% endif %}; color: #FFFFFF; font-weight: 700; font-size: 10px;">
+                PHASE 1
+              </span>
+              <span style="font-size: 11px; font-weight: 700; color: #64748B;">Target: 10m</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">Line Clearance &amp; CIP</div>
+            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px;">Purge old SKU materials &amp; sanitize.</div>
+            <div class="font-mono" style="font-size: 16px; font-weight: 700; color: {% if active_changeover.current_phase == 1 %}#8B5CF6{% elif active_changeover.current_phase > 1 %}#10B981{% else %}#94A3B8{% endif %};">
+              {% if active_changeover.current_phase > 1 %}
+                {{ active_changeover.phase1_duration_seconds }}s (Done)
+              {% elif active_changeover.current_phase == 1 %}
+                Active Now
+              {% else %}
+                Pending
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Phase 2 -->
+          <div style="padding: 16px; border-radius: 8px; border: 2px solid {% if active_changeover.current_phase == 2 %}#8B5CF6; background: #F5F3FF;{% elif active_changeover.current_phase > 2 %}#10B981; background: #ECFDF5;{% else %}#E2E8F0; background: #F8FAFC;{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: {% if active_changeover.current_phase == 2 %}#8B5CF6{% elif active_changeover.current_phase > 2 %}#10B981{% else %}#94A3B8{% endif %}; color: #FFFFFF; font-weight: 700; font-size: 10px;">
+                PHASE 2
+              </span>
+              <span style="font-size: 11px; font-weight: 700; color: #64748B;">Target: 15m</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">Mechanical Tooling Swap</div>
+            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px;">Chucks, starwheels &amp; bottle guides.</div>
+            <div class="font-mono" style="font-size: 16px; font-weight: 700; color: {% if active_changeover.current_phase == 2 %}#8B5CF6{% elif active_changeover.current_phase > 2 %}#10B981{% else %}#94A3B8{% endif %};">
+              {% if active_changeover.current_phase > 2 %}
+                {{ active_changeover.phase2_duration_seconds }}s (Done)
+              {% elif active_changeover.current_phase == 2 %}
+                Active Now
+              {% else %}
+                Pending
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Phase 3 -->
+          <div style="padding: 16px; border-radius: 8px; border: 2px solid {% if active_changeover.current_phase == 3 %}#8B5CF6; background: #F5F3FF;{% elif active_changeover.current_phase > 3 %}#10B981; background: #ECFDF5;{% else %}#E2E8F0; background: #F8FAFC;{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: {% if active_changeover.current_phase == 3 %}#8B5CF6{% elif active_changeover.current_phase > 3 %}#10B981{% else %}#94A3B8{% endif %}; color: #FFFFFF; font-weight: 700; font-size: 10px;">
+                PHASE 3
+              </span>
+              <span style="font-size: 11px; font-weight: 700; color: #64748B;">Target: 5m</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">Recipe &amp; Setpoint Loading</div>
+            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px;">Digital volume &amp; torque recipe.</div>
+            <div class="font-mono" style="font-size: 16px; font-weight: 700; color: {% if active_changeover.current_phase == 3 %}#8B5CF6{% elif active_changeover.current_phase > 3 %}#10B981{% else %}#94A3B8{% endif %};">
+              {% if active_changeover.current_phase > 3 %}
+                {{ active_changeover.phase3_duration_seconds }}s (Done)
+              {% elif active_changeover.current_phase == 3 %}
+                Active Now
+              {% else %}
+                Pending
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Phase 4 -->
+          <div style="padding: 16px; border-radius: 8px; border: 2px solid {% if active_changeover.current_phase == 4 %}#8B5CF6; background: #F5F3FF;{% else %}#E2E8F0; background: #F8FAFC;{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: {% if active_changeover.current_phase == 4 %}#8B5CF6{% else %}#94A3B8{% endif %}; color: #FFFFFF; font-weight: 700; font-size: 10px;">
+                PHASE 4
+              </span>
+              <span style="font-size: 11px; font-weight: 700; color: #64748B;">Target: 10m</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">Test Run &amp; Ramp-Up</div>
+            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px;">Reach rated CPM &amp; log scrap.</div>
+            <div class="font-mono" style="font-size: 16px; font-weight: 700; color: {% if active_changeover.current_phase == 4 %}#8B5CF6{% else %}#94A3B8{% endif %};">
+              {% if active_changeover.current_phase == 4 %}
+                Active Now
+              {% else %}
+                Pending
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Advance Phase Action Form -->
+        <form method="POST" action="{% url 'smed_next_phase_action' %}" style="margin: 0; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px;">
+          {% csrf_token %}
+          <input type="hidden" name="changeover_id" value="{{ active_changeover.id }}">
+
+          {% if active_changeover.current_phase == 4 %}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="fs-form-label">RAMP-UP TEST PIECES PRODUCED</label>
+                <input type="number" name="rampup_units" value="50" min="0" class="fs-form-input font-mono" style="min-height: 44px;" required>
+              </div>
+              <div>
+                <label class="fs-form-label">RAMP-UP STARTUP SCRAP REJECTS</label>
+                <input type="number" name="rampup_scrap" value="2" min="0" class="fs-form-input font-mono" style="min-height: 44px;" required>
+              </div>
+            </div>
+            <button type="submit" class="fs-btn fs-btn-primary" style="min-height: 48px; width: 100%; font-size: 15px; font-weight: 700; background: #16A34A; border-color: #16A34A;">
+              {% if is_rtl %}إنهاء التبديل وبدء الإنتاج الفعلي (Complete Changeover){% else %}Complete Changeover &amp; Release Line to Production{% endif %}
+            </button>
+          {% else %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: #0F172A;">
+                  Currently in Phase {{ active_changeover.current_phase }}: {{ active_changeover.get_current_phase_display }}
+                </div>
+                <div style="font-size: 12px; color: #64748B;">
+                  When step tasks are complete, tap advance to progress to Phase {{ active_changeover.current_phase|add:1 }}.
+                </div>
+              </div>
+              <button type="submit" class="fs-btn fs-btn-primary" style="min-height: 48px; font-size: 14px; font-weight: 700; background: #8B5CF6; border-color: #8B5CF6; padding: 0 24px;">
+                {% if is_rtl %}الانتقال للمرحلة التالية &larr;{% else %}Advance to Next Phase &rarr;{% endif %}
+              </button>
+            </div>
+          {% endif %}
+        </form>
+
+      </div>
+    {% else %}
+
+      <!-- INITIATE NEW SMED CHANGEOVER CARD -->
+      <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+        <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 8px;">
+          {% if is_rtl %}بدء تبديل منتج / قالب جديد (Initiate SMED Changeover){% else %}Initiate New SMED Changeover{% endif %}
+        </h2>
+        <p style="font-size: 13px; color: #64748B; margin-bottom: 20px;">
+          Starting a changeover sets line assets to <strong>CHANGEOVER</strong> state and initiates the 4-phase digital stopwatch.
+        </p>
+
+        <form method="POST" action="{% url 'smed_start_action' %}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: flex-end;">
+          {% csrf_token %}
+          <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+
+          <div>
+            <label class="fs-form-label">TARGET PRODUCT SKU (RECIPE)</label>
+            <select name="to_product_id" class="fs-form-select" required style="min-height: 48px; font-size: 14px;">
+              <option value="">-- Select Target SKU --</option>
+              {% for p in products %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ p.code }}) &bull; {{ p.nominal_weight }}g</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="fs-form-label">CHANGEOVER REMARKS (OPTIONAL)</label>
+            <input type="text" name="notes" class="fs-form-input" placeholder="e.g. Mold change from 500ml to 1.5L bottle" style="min-height: 48px;">
+          </div>
+
+          <div>
+            <button type="submit" class="fs-btn fs-btn-primary" style="background: #8B5CF6; border-color: #8B5CF6; min-height: 48px; padding: 0 24px; font-weight: 700;">
+              {% if is_rtl %}بدء مؤقت SMED{% else %}Start SMED Stopwatch{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    {% endif %}
+
+    <!-- Historical Completed Changeovers Table -->
+    <div class="fs-table-card" style="padding: 24px;">
+      <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 16px;">
+        {% if is_rtl %}سجل تبديل القوالب المكتمل (Historical SMED Records){% else %}Recent Completed SMED Changeovers{% endif %}
+      </h3>
+
+      <table class="fs-table" style="font-size: 13px;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Target SKU</th>
+            <th>Phase 1 (CIP)</th>
+            <th>Phase 2 (Tooling)</th>
+            <th>Phase 3 (Recipe)</th>
+            <th>Phase 4 (Ramp-up)</th>
+            <th>Total Duration</th>
+            <th>Standard Variance</th>
+            <th>Ramp-up Scrap</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for co in recent_changeovers %}
+            <tr>
+              <td class="font-mono">{{ co.completed_at|date:"Y-m-d H:i" }}</td>
+              <td style="font-weight: 700;">{{ co.to_product.name }}</td>
+              <td class="font-mono">{{ co.phase1_duration_seconds }}s</td>
+              <td class="font-mono">{{ co.phase2_duration_seconds }}s</td>
+              <td class="font-mono">{{ co.phase3_duration_seconds }}s</td>
+              <td class="font-mono">{{ co.phase4_duration_seconds }}s</td>
+              <td class="font-mono" style="font-weight: 800;">{{ co.total_duration_minutes }} min</td>
+              <td>
+                {% if co.variance_minutes > 0 %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">
+                    +{{ co.variance_minutes }}m (Overtime)
+                  </span>
+                {% else %}
+                  <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+                    {{ co.variance_minutes }}m (Fast)
+                  </span>
+                {% endif %}
+              </td>
+              <td class="font-mono" style="color: #DC2626;">{{ co.rampup_scrap_units }} pcs</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="9" style="text-align: center; color: #64748B;">No completed SMED changeover records found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}
+

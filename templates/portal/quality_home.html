@@ -1,50 +1,394 @@
 {% extends 'base.html' %}
+{% load static i18n %}
 
 {% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
 
 {% block content %}
 <div class="fs-quality-page">
 
+  <!-- Header with Filters & Actions -->
   <div class="fs-page-header">
     <div class="fs-page-title-wrap">
       <h1 class="fs-page-title">
         {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
       </h1>
       <p class="fs-page-subtitle">
-        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; ISO 22400-2 SPC, Gaussian Bell Curves & Giveaway Optimization
+        {% trans "ISO 22400-2 Statistical Process Control (SPC), Gaussian Bell Curves & Product Giveaway Optimization" %}
       </p>
     </div>
 
-    <div class="fs-page-actions">
-      <span class="fs-batch-badge">
-        <span>Batch 5 &bull; Quality SPC Delivery</span>
-      </span>
+    <div class="fs-page-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <a href="{% url 'quality_samples' %}?product={{ selected_product.id }}&line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 12px; font-size: 13px;">
+        {% trans "Weight Samples" %}
+      </a>
+      <a href="{% url 'quality_defects' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 12px; font-size: 13px;">
+        {% trans "Defects Ledger" %}
+      </a>
+      <a href="{% url 'quality_giveaway' %}?product={{ selected_product.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 12px; font-size: 13px;">
+        {% trans "Giveaway Deep-Dive" %}
+      </a>
+      <a href="{% url 'quality_export_csv' %}?product={{ selected_product.id }}&line={{ selected_line.id }}" class="fs-btn fs-btn-primary" style="padding: 7px 14px; font-size: 13px;">
+        {% trans "Export CSV" %}
+      </a>
     </div>
   </div>
 
-  <div class="fs-batch-card">
-    <div style="margin-bottom: 12px;">
-      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
-        Quality Assurance & Weight SPC Control Hub (Batch 5 Scope)
-      </h2>
+  <!-- Filters Ribbon -->
+  <div class="fs-table-card" style="padding: 12px 18px; margin-bottom: 20px;">
+    <form method="GET" action="{% url 'quality_home' %}" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 0;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="qLine" style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary);">{% trans "Line" %}:</label>
+        <select id="qLine" name="line" onchange="this.form.submit()" style="padding: 6px 10px; font-size: 13px; font-weight: 600; border: 1px solid var(--fs-border); border-radius: 6px; background: #fff;">
+          {% for l in lines %}
+            <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>{{ l.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="qProduct" style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary);">{% trans "Product" %}:</label>
+        <select id="qProduct" name="product" onchange="this.form.submit()" style="padding: 6px 10px; font-size: 13px; font-weight: 600; border: 1px solid var(--fs-border); border-radius: 6px; background: #fff;">
+          {% for p in products %}
+            <option value="{{ p.id }}" {% if selected_product.id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.sku }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="qMachine" style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary);">{% trans "Sampling Asset" %}:</label>
+        <select id="qMachine" name="machine" onchange="this.form.submit()" style="padding: 6px 10px; font-size: 13px; font-weight: 600; border: 1px solid var(--fs-border); border-radius: 6px; background: #fff;">
+          {% for m in machines %}
+            <option value="{{ m.id }}" {% if selected_machine.id == m.id %}selected{% endif %}>{{ m.code }} - {{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+
+  {% if spc.status == 'OK' %}
+    <!-- 1. Process Capability & Giveaway Overview Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      
+      <!-- Cpk Capability Card -->
+      <div class="fs-table-card" style="padding: 20px; border-top: 4px solid {{ spc.capability.color }};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+            {% trans "Process Centering (Cpk)" %}
+          </span>
+          <span style="padding: 2px 6px; font-size: 11px; font-weight: 700; border-radius: 4px; background: {{ spc.capability.color }}22; color: {{ spc.capability.color }};">
+            {{ spc.capability.rating }}
+          </span>
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: {{ spc.capability.color }}; margin: 4px 0;">
+          {{ spc.capability.cpk }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {% trans "Target" %}: &ge; 1.33 &bull; Cp: <strong class="font-mono">{{ spc.capability.cp }}</strong>
+        </div>
+      </div>
+
+      <!-- Process Mean & Spread -->
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase; margin-bottom: 6px;">
+          {% trans "Process Mean & StdDev" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+          {{ spc.stats.mu_overall }}g
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          Nominal: {{ spc.config.nominal }}g &bull; &sigma;: <strong class="font-mono">{{ spc.stats.sigma_overall }}g</strong>
+        </div>
+      </div>
+
+      <!-- Overfill Giveaway per Unit -->
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase; margin-bottom: 6px;">
+          {% trans "Average Giveaway / Unit" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: {% if spc.giveaway.avg_giveaway_grams > 0.5 %}#DC2626{% else %}#16A34A{% endif %}; margin: 4px 0;">
+          +{{ spc.giveaway.avg_giveaway_grams }}g
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {% trans "Overfill above 500.00g nominal" %}
+        </div>
+      </div>
+
+      <!-- Projected Annual Giveaway Cost -->
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase; margin-bottom: 6px;">
+          {% trans "Annual Giveaway Loss" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #DC2626; margin: 4px 0;">
+          ${{ spc.giveaway.annual_giveaway_cost|floatformat:2 }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {{ spc.giveaway.annual_giveaway_kg|floatformat:0 }} kg {% trans "excess product per year" %}
+        </div>
+      </div>
     </div>
 
-    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
-      Statistical Process Control (X-bar/R charts), Gaussian distributions, Cp/Cpk indices, and overfill product giveaway financial calculations will be delivered in <strong>Batch 5</strong>:
-    </p>
+    <!-- 2. Gaussian Normal Distribution Bell Curve -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div>
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 4px 0;">
+            {% trans "Gaussian Normal Distribution Bell Curve vs Specification Limits" %}
+          </h3>
+          <span style="font-size: 12px; color: var(--fs-text-secondary);">
+            LSL: <strong class="font-mono">{{ spc.config.lsl }}g</strong> &bull; Nominal: <strong class="font-mono">{{ spc.config.nominal }}g</strong> &bull; USL: <strong class="font-mono">{{ spc.config.usl }}g</strong>
+          </span>
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 11px; font-weight: 600;">
+          <span style="display: flex; align-items: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; background: #DC2626; display: inline-block;"></span> LSL / USL
+          </span>
+          <span style="display: flex; align-items: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; background: #2563EB; display: inline-block;"></span> {% trans "Nominal" %}
+          </span>
+          <span style="display: flex; align-items: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; background: #10B981; display: inline-block;"></span> {% trans "Mean" %} (&mu;)
+          </span>
+        </div>
+      </div>
 
-    <ul class="fs-roadmap-list">
-      {% for feature in scheduled_features %}
-        <li class="fs-roadmap-item">
-          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 11 12 14 22 4"></polyline>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-          </svg>
-          <span>{{ feature }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+      <!-- SVG Normal Curve -->
+      <div style="width: 100%; overflow-x: auto; background: #F8FAFC; border: 1px solid var(--fs-border); border-radius: 6px; padding: 12px 10px;">
+        <svg viewBox="0 0 560 140" style="width: 100%; height: 160px; overflow: visible;">
+          <!-- Grid lines -->
+          <line x1="0" y1="120" x2="560" y2="120" stroke="#CBD5E1" stroke-width="1.5" />
+
+          <!-- Specification Limit Markers -->
+          <!-- LSL line -->
+          <line x1="{{ spc.gaussian_curve.lsl_svg_x }}" y1="10" x2="{{ spc.gaussian_curve.lsl_svg_x }}" y2="120" stroke="#DC2626" stroke-width="2" stroke-dasharray="4" />
+          <text x="{{ spc.gaussian_curve.lsl_svg_x }}" y="135" fill="#DC2626" font-size="10" font-weight="700" text-anchor="middle">LSL {{ spc.config.lsl }}g</text>
+
+          <!-- USL line -->
+          <line x1="{{ spc.gaussian_curve.usl_svg_x }}" y1="10" x2="{{ spc.gaussian_curve.usl_svg_x }}" y2="120" stroke="#DC2626" stroke-width="2" stroke-dasharray="4" />
+          <text x="{{ spc.gaussian_curve.usl_svg_x }}" y="135" fill="#DC2626" font-size="10" font-weight="700" text-anchor="middle">USL {{ spc.config.usl }}g</text>
+
+          <!-- Nominal line -->
+          <line x1="{{ spc.gaussian_curve.nominal_svg_x }}" y1="10" x2="{{ spc.gaussian_curve.nominal_svg_x }}" y2="120" stroke="#2563EB" stroke-width="2" />
+          <text x="{{ spc.gaussian_curve.nominal_svg_x }}" y="135" fill="#2563EB" font-size="10" font-weight="700" text-anchor="middle">Nom {{ spc.config.nominal }}g</text>
+
+          <!-- Process Mean line -->
+          <line x1="{{ spc.gaussian_curve.mean_svg_x }}" y1="10" x2="{{ spc.gaussian_curve.mean_svg_x }}" y2="120" stroke="#10B981" stroke-width="2.5" />
+          <text x="{{ spc.gaussian_curve.mean_svg_x }}" y="135" fill="#10B981" font-size="10" font-weight="700" text-anchor="middle">&mu; {{ spc.stats.mu_overall }}g</text>
+
+          <!-- Normal Distribution Bell Polyline -->
+          <polyline fill="none" stroke="#2563EB" stroke-width="3" points="{{ spc.gaussian_curve.svg_points_str }}" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- 3. ISO 22400-2 SPC Control Charts: X-bar and R Charts -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+      
+      <!-- X-bar Chart -->
+      <div class="fs-table-card" style="padding: 20px 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 2px 0;">
+              {% trans "X-bar Chart (Subgroup Means)" %}
+            </h3>
+            <span style="font-size: 11px; color: var(--fs-text-secondary);">
+              UCL: <strong class="font-mono">{{ spc.xbar_chart.ucl }}g</strong> &bull; CL: <strong class="font-mono">{{ spc.xbar_chart.cl }}g</strong> &bull; LCL: <strong class="font-mono">{{ spc.xbar_chart.lcl }}g</strong>
+            </span>
+          </div>
+          {% if spc.out_of_control_count > 0 %}
+            <span style="padding: 2px 6px; font-size: 11px; font-weight: 700; border-radius: 4px; background: #FEE2E2; color: #DC2626;">
+              {{ spc.out_of_control_count }} {% trans "OOC Point(s)" %}
+            </span>
+          {% endif %}
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="fs-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>{% trans "SG #" %}</th>
+                <th>{% trans "Time" %}</th>
+                <th style="text-align: right;">{% trans "Mean" %}</th>
+                <th style="text-align: center;">{% trans "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pt in spc.xbar_chart.points %}
+                <tr {% if pt.is_ooc %}style="background: #FEE2E2;"{% endif %}>
+                  <td class="font-mono font-bold">{{ pt.sg }}</td>
+                  <td class="font-mono">{{ pt.time }}</td>
+                  <td class="font-mono" style="text-align: right; font-weight: 700; {% if pt.is_ooc %}color: #DC2626;{% endif %}">
+                    {{ pt.value }}g
+                  </td>
+                  <td style="text-align: center;">
+                    {% if pt.is_ooc %}
+                      <span style="color: #DC2626; font-weight: 700;">OOC</span>
+                    {% else %}
+                      <span style="color: #16A34A; font-weight: 600;">IN CONTROL</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- R Chart (Range) -->
+      <div class="fs-table-card" style="padding: 20px 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 2px 0;">
+              {% trans "R Chart (Subgroup Ranges)" %}
+            </h3>
+            <span style="font-size: 11px; color: var(--fs-text-secondary);">
+              UCL: <strong class="font-mono">{{ spc.r_chart.ucl }}g</strong> &bull; CL: <strong class="font-mono">{{ spc.r_chart.cl }}g</strong> &bull; LCL: <strong class="font-mono">{{ spc.r_chart.lcl }}g</strong>
+            </span>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="fs-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>{% trans "SG #" %}</th>
+                <th>{% trans "Time" %}</th>
+                <th style="text-align: right;">{% trans "Range (R)" %}</th>
+                <th style="text-align: center;">{% trans "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pt in spc.r_chart.points %}
+                <tr {% if pt.is_ooc %}style="background: #FEE2E2;"{% endif %}>
+                  <td class="font-mono font-bold">{{ pt.sg }}</td>
+                  <td class="font-mono">{{ pt.time }}</td>
+                  <td class="font-mono" style="text-align: right; font-weight: 700; {% if pt.is_ooc %}color: #DC2626;{% endif %}">
+                    {{ pt.value }}g
+                  </td>
+                  <td style="text-align: center;">
+                    {% if pt.is_ooc %}
+                      <span style="color: #DC2626; font-weight: 700;">OOC</span>
+                    {% else %}
+                      <span style="color: #16A34A; font-weight: 600;">IN CONTROL</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Interactive Recalibration Slider & Annual Savings Simulator -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px; background: #FFFFFF; border-left: 5px solid #2563EB;">
+      <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 6px 0;">
+        {% trans "Interactive Fill Recalibration Slider (Optimization Simulator)" %}
+      </h3>
+      <p style="font-size: 13px; color: var(--fs-text-secondary); margin: 0 0 16px 0;">
+        {% trans "Simulate adjusting the filling nozzle target closer to nominal 500.00g to evaluate annual raw material savings against legal underfill compliance limits." %}
+      </p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center;">
+        <div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <label for="recalSlider" style="font-size: 13px; font-weight: 700; color: var(--fs-text-primary);">
+              {% trans "Target Fill Adjustment Offset" %}:
+            </label>
+            <span id="sliderValDisplay" class="font-mono" style="font-size: 14px; font-weight: 800; color: #2563EB;">
+              0.00g
+            </span>
+          </div>
+
+          <input type="range" id="recalSlider" min="-2.00" max="0.00" step="0.05" value="0.00" style="width: 100%; cursor: pointer;"
+                 oninput="handleSliderChange(this.value)">
+
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--fs-text-secondary); margin-top: 4px;">
+            <span>-2.00g ({% trans "Aggressive Savings" %})</span>
+            <span>-1.00g</span>
+            <span>0.00g ({% trans "Current Status Quo" %})</span>
+          </div>
+        </div>
+
+        <!-- Simulation Outputs -->
+        <div style="background: #F8FAFC; border: 1px solid var(--fs-border); border-radius: 8px; padding: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+                {% trans "Projected Annual Savings" %}
+              </div>
+              <div id="simSavingsDisplay" class="font-mono" style="font-size: 22px; font-weight: 800; color: #16A34A;">
+                $0.00
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+                {% trans "Simulated Cpk" %}
+              </div>
+              <div id="simCpkDisplay" class="font-mono" style="font-size: 22px; font-weight: 800; color: #2563EB;">
+                {{ spc.capability.cpk }}
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size: 12px; color: var(--fs-text-secondary); border-top: 1px solid var(--fs-border); padding-top: 8px;">
+            {% trans "Legal Underfill Risk" %}: <strong id="simRiskDisplay" class="font-mono" style="color: #0F172A;">0.000%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statutory Disclaimer -->
+      <div style="margin-top: 16px; padding: 8px 12px; background: #F1F5F9; border-radius: 6px; font-size: 11px; color: var(--fs-text-secondary);">
+        <strong>{% trans "Compliance Disclaimer" %}:</strong> {% trans "The slider is an estimate based on standard normal distribution assumptions. It does not replace certified legal metrology calibration or guarantee zero underfill liability." %}
+      </div>
+    </div>
+
+  {% else %}
+    <div class="fs-table-card" style="padding: 40px; text-align: center;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 8px;">
+        {% trans "Insufficient Weight Samples for Statistical Process Control" %}
+      </h3>
+      <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 16px;">
+        {% trans "At least 2 statistical subgroups or 5 weight sample measurements are required to calculate X-bar, R charts, and Cp/Cpk indices." %}
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="{% url 'operator_home' %}" class="fs-btn fs-btn-primary">
+          {% trans "Record Weight on Operator Console" %}
+        </a>
+        <a href="{% url 'controller_home' %}" class="fs-btn fs-btn-outline">
+          {% trans "Inject Telemetry in Simulator" %}
+        </a>
+      </div>
+    </div>
+  {% endif %}
 
 </div>
+
+{% block extra_js %}
+<script>
+  function handleSliderChange(val) {
+    document.getElementById('sliderValDisplay').innerText = val + 'g';
+    
+    // Call recalibration API
+    const formData = new FormData();
+    formData.append('offset_grams', val);
+    formData.append('product_id', '{{ selected_product.id }}');
+    formData.append('machine_id', '{{ selected_machine.id }}');
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch("{% url 'quality_recalibrate_api' %}", {
+      method: 'POST',
+      body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'OK') {
+        document.getElementById('simSavingsDisplay').innerText = '$' + Number(data.annual_savings_cost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('simCpkDisplay').innerText = data.simulated_cpk;
+        document.getElementById('simRiskDisplay').innerText = data.underfill_risk_pct + '% (< LSL)';
+      }
+    })
+    .catch(err => console.error('Recalibration error:', err));
+  }
+</script>
+{% endblock %}
 {% endblock %}

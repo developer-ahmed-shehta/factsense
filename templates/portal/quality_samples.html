@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-quality-samples-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% trans "Subgroups (ISO 22400-2) and Raw Checkweigher Scale Weight Readings" %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 8px;">
+      <a href="{% url 'quality_home' %}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        &larr; {% trans "Back to SPC Hub" %}
+      </a>
+      <a href="{% url 'quality_export_csv' %}?product={{ selected_product.id }}" class="fs-btn fs-btn-primary" style="padding: 7px 14px; font-size: 13px;">
+        {% trans "Export CSV" %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Subgroups Summary Table -->
+  <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+    <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 14px 0;">
+      {% trans "Recent Statistical Subgroups (n = 5)" %}
+    </h3>
+
+    <div style="overflow-x: auto;">
+      <table class="fs-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>{% trans "Subgroup #" %}</th>
+            <th>{% trans "Timestamp" %}</th>
+            <th>{% trans "Asset" %}</th>
+            <th>{% trans "Product SKU" %}</th>
+            <th style="text-align: right;">{% trans "Mean (X-bar)" %}</th>
+            <th style="text-align: right;">{% trans "Range (R)" %}</th>
+            <th style="text-align: right;">{% trans "StdDev (s)" %}</th>
+            <th style="text-align: center;">{% trans "Control State" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sg in recent_subgroups %}
+            <tr>
+              <td class="font-mono font-bold">{{ sg.subgroup_number }}</td>
+              <td class="font-mono" style="font-size: 12px;">{{ sg.timestamp|date:"Y-m-d H:i:s" }}</td>
+              <td><strong>{{ sg.machine.code }}</strong> - {{ sg.machine.name }}</td>
+              <td><span class="fs-pill font-mono">{{ sg.product.sku }}</span></td>
+              <td class="font-mono font-bold" style="text-align: right;">{{ sg.sample_mean }}g</td>
+              <td class="font-mono" style="text-align: right;">{{ sg.sample_range }}g</td>
+              <td class="font-mono" style="text-align: right;">{{ sg.sample_std }}g</td>
+              <td style="text-align: center;">
+                {% if sg.is_out_of_control %}
+                  <span style="color: #DC2626; font-weight: 700; font-size: 11px;">OUT OF CONTROL</span>
+                {% else %}
+                  <span style="color: #16A34A; font-weight: 600; font-size: 11px;">IN CONTROL</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--fs-text-secondary); padding: 24px;">
+                {% trans "No statistical subgroups recorded yet." %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Raw Weight Measurements Table -->
+  <div class="fs-table-card" style="padding: 20px 24px;">
+    <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 14px 0;">
+      {% trans "Individual Weight Samples Log" %}
+    </h3>
+
+    <div style="overflow-x: auto;">
+      <table class="fs-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>{% trans "Timestamp" %}</th>
+            <th>{% trans "Asset" %}</th>
+            <th>{% trans "Product SKU" %}</th>
+            <th style="text-align: right;">{% trans "Measured Weight" %}</th>
+            <th style="text-align: right;">{% trans "Nominal" %}</th>
+            <th style="text-align: right;">{% trans "Deviation" %}</th>
+            <th style="text-align: center;">{% trans "Within Spec" %}</th>
+            <th>{% trans "Operator" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in recent_samples %}
+            <tr>
+              <td class="font-mono" style="font-size: 12px;">{{ s.timestamp|date:"Y-m-d H:i:s" }}</td>
+              <td><strong>{{ s.machine.code }}</strong></td>
+              <td><span class="fs-pill font-mono">{{ s.product.sku }}</span></td>
+              <td class="font-mono font-bold" style="text-align: right;">{{ s.measured_weight_grams }}g</td>
+              <td class="font-mono" style="text-align: right; color: var(--fs-text-secondary);">{{ s.nominal_target_grams }}g</td>
+              <td class="font-mono font-bold" style="text-align: right; color: {% if s.deviation_grams > 0 %}#DC2626{% else %}#2563EB{% endif %};">
+                {{ s.deviation_grams|floatformat:2 }}g
+              </td>
+              <td style="text-align: center;">
+                {% if s.is_within_spec %}
+                  <span style="color: #16A34A; font-weight: 700; font-size: 11px;">PASS</span>
+                {% else %}
+                  <span style="color: #DC2626; font-weight: 700; font-size: 11px;">FAIL (OOS)</span>
+                {% endif %}
+              </td>
+              <td style="font-size: 12px;">{{ s.operator.username|default:"System" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--fs-text-secondary); padding: 24px;">
+                {% trans "No individual weight measurements recorded yet." %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

@@ -1,0 +1,22 @@
+{% load i18n %}
+<div class="border-b border-gray-200 mb-6">
+    <div class="flex space-x-6 rtl:space-x-reverse overflow-x-auto">
+        <a href="{% url 'work_orders_home' %}" 
+           class="py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap {% if active_tab == 'dispatch' %}border-emerald-600 text-emerald-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+            {% if request.LANGUAGE_CODE == 'ar' %}إدارة أوامر العمل{% else %}Central Dispatch{% endif %}
+        </a>
+        <a href="{% url 'work_orders_schedule' %}" 
+           class="py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap {% if active_tab == 'schedule' %}border-emerald-600 text-emerald-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+            {% if request.LANGUAGE_CODE == 'ar' %}جدول الورديات والماكينات{% else %}Shift & Machine Schedule{% endif %}
+        </a>
+        <a href="{% url 'work_orders_materials' %}" 
+           class="py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap {% if active_tab == 'materials' %}border-emerald-600 text-emerald-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+            {% if request.LANGUAGE_CODE == 'ar' %}تجهيز وتسليم المواد الخام{% else %}Material Staging & Delivery{% endif %}
+        </a>
+        <a href="{% url 'work_orders_erp_sync' %}" 
+           class="py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap {% if active_tab == 'erp_sync' %}border-emerald-600 text-emerald-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+            {% if request.LANGUAGE_CODE == 'ar' %}مزامنة ERP / أودو وطابور النزاعات{% else %}ERP / Odoo Sync & Conflicts{% endif %}
+        </a>
+    </div>
+</div>
+

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Header Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}التقارير والتحليلات{% else %}Reports & Analytics{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}استكشاف البيانات التاريخية{% else %}Historical Explorer{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                استعراض وتصفية السجلات التاريخية للتوقفات، ونسب الهالك، وأوامر العمل مع تصدير مباشر بتنسيق CSV.
+                {% else %}
+                Multi-dimensional historical record explorer across downtime events, scrap defects, and work orders with CSV export.
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-3 rtl:space-x-reverse">
+            <a href="{% url 'reports_explorer_export_csv' %}?line={{ selected_line.id }}&dataset={{ dataset_type }}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-semibold rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}تصدير البيانات (CSV){% else %}Export Filtered CSV{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "reports/partials/nav_tabs.html" with active_tab="explorer" %}
+
+    <!-- Filter Bar Card -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Production Line</label>
+                <select name="line" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for l in lines %}
+                    <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Dataset Entity</label>
+                <select name="dataset" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="DOWNTIME" {% if dataset_type == 'DOWNTIME' %}selected{% endif %}>Downtime & Stoppage Intervals</option>
+                    <option value="DEFECTS" {% if dataset_type == 'DEFECTS' %}selected{% endif %}>Quality Scrap & Defect Logs</option>
+                    <option value="WORK_ORDERS" {% if dataset_type == 'WORK_ORDERS' %}selected{% endif %}>Production Work Orders</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full py-2 px-4 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-gray-800 hover:bg-gray-900">
+                    Apply Filter & Query
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Records Table Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-8">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Historical Query Results ({{ total_records_count }} Records)
+            </h2>
+            <span class="text-xs text-gray-500 font-mono">
+                Scope: {{ selected_line.name }}
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            {% if dataset_type == 'DOWNTIME' %}
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Machine</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Loss Category</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Reason</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Start Time</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Duration (Min)</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Operator Comment</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono text-xs">
+                    {% for r in records %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-900">{{ r.machine.code }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans text-gray-700">{{ r.tpm_loss_type }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans font-medium text-gray-900">{{ r.reason.name|default:"Unclassified" }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">{{ r.start_time|date:'Y-m-d H:i:s' }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800">{{ r.duration_seconds|floatformat:0 }} s</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans text-gray-600">{{ r.notes|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 font-sans">No downtime records match query.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% elif dataset_type == 'DEFECTS' %}
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Timestamp</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Machine</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Defect Reason</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Quantity (Pcs)</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Disposition</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Scrap Cost</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono text-xs">
+                    {% for r in records %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">{{ r.logged_at|date:'Y-m-d H:i:s' }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-900">{{ r.machine.code }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans font-medium text-gray-900">{{ r.reason.name|default:"Production Scrap" }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-red-600">{{ r.quantity_pieces }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans text-gray-700">{{ r.disposition }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-800">${{ r.financial_cost|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 font-sans">No defect records match query.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Order Number</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Product SKU</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Target Qty</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Produced Qty</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Progress %</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono text-xs">
+                    {% for r in records %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-900">{{ r.order_number }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">{{ r.product.code }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-800">{{ r.target_quantity }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-emerald-600 font-bold">{{ r.produced_quantity }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-800">{{ r.progress_percent }}%</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-sans font-semibold text-gray-700">{{ r.get_status_display }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 font-sans">No work orders match query.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

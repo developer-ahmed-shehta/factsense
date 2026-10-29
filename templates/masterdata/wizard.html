@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "60-Second Onboarding Wizard" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}معالج إعداد خط الإنتاج السريع (60 ثانية){% else %}60-Second Onboarding Wizard{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          نشر خط تعبئة وتغليف صناعي متكامل فائق السرعة، والماكينات المتسلسلة، وتعيين عنق الزجاجة ومصفوفة السرعات بنقرة واحدة.
+        {% else %}
+          Rapidly deploy a complete production packaging line, sequential assets, bottleneck constraint, and speed matrix in 1-click.
+        {% endif %}
+      </p>
+    </div>
+    <div>
+      <a href="{% url 'topology' %}" class="fs-btn fs-btn-secondary">
+        {% if is_rtl %}عرض المخطط الطوبولوجي{% else %}View Topology Graph{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <form method="POST" action="{% url 'wizard' %}" id="wizardForm">
+    {% csrf_token %}
+
+    <!-- 1-Click Industry Presets Selection -->
+    <div style="margin-bottom: 28px;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+        {% if is_rtl %}1. اختر النموذج الصناعي المعياري{% else %}1. Select Industry Preset{% endif %}
+      </h2>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 16px;">
+        
+        <!-- Preset: Water -->
+        <label class="preset-card" style="border: 2px solid #2563EB; border-radius: 8px; background: #FFFFFF; padding: 20px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <span class="fs-role-tag" style="background: #DBEAFE; color: #1D4ED8; font-weight: 700;">WATER / BEVERAGE</span>
+                <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-top: 6px;">
+                  {% if is_rtl %}خط تعبئة مياه معدنية (سرعة عالية){% else %}Bottled Water (High Speed){% endif %}
+                </h3>
+              </div>
+              <input type="radio" name="preset_key" value="WATER" checked onchange="updatePresetPreview('WATER')" style="accent-color: #2563EB; transform: scale(1.3);">
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin-bottom: 14px; line-height: 1.5;">
+              {% if is_rtl %}
+                6 ماكينات متسلسلة (نفخ -> شطف -> تعبئة -> أغطية -> استيكر -> كرتنة -> بالتة) مع فيلر 120 عبوة/دقيقة كعنق زجاجة.
+              {% else %}
+                6 Sequential assets (Blow Molder -> Rinser -> Filler -> Capper -> Labeler -> Packer -> Palletizer) with 120 CPM Filler Bottleneck.
+              {% endif %}
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; font-size: 12px; font-weight: 600; color: #475569; border-top: 1px solid #F1F5F9; padding-top: 12px;">
+            <span>Target OEE: <strong>85%</strong></span>
+            <span>•</span>
+            <span>Assets: <strong>7 Machines</strong></span>
+            <span>•</span>
+            <span>Bottleneck: <strong>FL-30 (120 CPM)</strong></span>
+          </div>
+        </label>
+
+        <!-- Preset: CSD -->
+        <label class="preset-card" style="border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF; padding: 20px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">CSD / CARBONATED</span>
+                <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-top: 6px;">
+                  {% if is_rtl %}خط تعبئة مشروبات غازية (CSD){% else %}Carbonated Soft Drinks (CSD){% endif %}
+                </h3>
+              </div>
+              <input type="radio" name="preset_key" value="CSD" onchange="updatePresetPreview('CSD')" style="accent-color: #2563EB; transform: scale(1.3);">
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin-bottom: 14px; line-height: 1.5;">
+              {% if is_rtl %}
+                5 ماكينات متسلسلة (شطافة -> تعبئة أيزوباريك -> درز أغطية -> بسترة -> سليف حراري) بسرعة 150 كانز/دقيقة.
+              {% else %}
+                5 Sequential assets (Rinser -> Isobaric Filler -> Crown Seamer -> Tunnel Pasteurizer -> Sleeve Labeler) at 150 CPM.
+              {% endif %}
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; font-size: 12px; font-weight: 600; color: #475569; border-top: 1px solid #F1F5F9; padding-top: 12px;">
+            <span>Target OEE: <strong>82%</strong></span>
+            <span>•</span>
+            <span>Assets: <strong>5 Machines</strong></span>
+            <span>•</span>
+            <span>Bottleneck: <strong>FL-20 (150 CPM)</strong></span>
+          </div>
+        </label>
+
+        <!-- Preset: Oil -->
+        <label class="preset-card" style="border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF; padding: 20px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700;">FOOD & EDIBLE OIL</span>
+                <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-top: 6px;">
+                  {% if is_rtl %}خط تعبئة زيوت طعام وسوائل غذائية{% else %}Edible Oil & Condiments Line{% endif %}
+                </h3>
+              </div>
+              <input type="radio" name="preset_key" value="OIL" onchange="updatePresetPreview('OIL')" style="accent-color: #2563EB; transform: scale(1.3);">
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin-bottom: 14px; line-height: 1.5;">
+              {% if is_rtl %}
+                4 ماكينات متسلسلة (تعبئة مكبسية سيرفو -> حاقن نيتروجين -> لحام فويل كهرومغناطيسي -> استيكر التفافي).
+              {% else %}
+                4 Sequential assets (Servo Piston Filler -> Nitrogen Doser -> Induction Foil Sealer -> Wrap Labeler) at 90 CPM.
+              {% endif %}
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; font-size: 12px; font-weight: 600; color: #475569; border-top: 1px solid #F1F5F9; padding-top: 12px;">
+            <span>Target OEE: <strong>80%</strong></span>
+            <span>•</span>
+            <span>Assets: <strong>4 Machines</strong></span>
+            <span>•</span>
+            <span>Bottleneck: <strong>FL-10 (90 CPM)</strong></span>
+          </div>
+        </label>
+
+      </div>
+    </div>
+
+    <!-- Line & Site Configuration Card -->
+    <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.05em;">
+        {% if is_rtl %}2. بيانات الخط وموقع المصنع{% else %}2. Production Line & Site Parameters{% endif %}
+      </h2>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+        <div class="fs-form-group">
+          <label class="fs-label" for="factory_id">{% if is_rtl %}موقع المصنع{% else %}Factory Site *{% endif %}</label>
+          <select id="factory_id" name="factory_id" class="fs-select">
+            {% for fac in factories %}
+              <option value="{{ fac.id }}">{{ fac.name }} ({{ fac.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="line_code">{% if is_rtl %}كود الخط الإنتاجي{% else %}Line Code *{% endif %}</label>
+          <input type="text" id="line_code" name="line_code" class="fs-input font-mono" value="LINE-WTR-02" required>
+          <div class="fs-help-text">Unique code identifier, e.g. LINE-WTR-02</div>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="line_name">{% if is_rtl %}اسم خط الإنتاج{% else %}Line Name *{% endif %}</label>
+          <input type="text" id="line_name" name="line_name" class="fs-input" value="High-Speed Water Line #2" required>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="target_oee">{% if is_rtl %}الهدف المعياري للأو إي إي (Target OEE %){% else %}Target OEE % *{% endif %}</label>
+          <input type="number" step="0.5" min="50" max="100" id="target_oee" name="target_oee" class="fs-input font-mono" value="85.0" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generated Assets Preview Table -->
+    <div class="fs-table-card" style="padding: 24px; margin-bottom: 28px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.05em;">
+            {% if is_rtl %}3. الماكينات التي سيتم إنشاؤها تلقائياً{% else %}3. Automated Assets & Speed Matrix Preview{% endif %}
+          </h2>
+          <p style="font-size: 13px; color: #64748B; margin-top: 4px;">
+            {% if is_rtl %}
+              سيتم إنشاء تسلسل الماكينات، وربط بروتوكولات الحساسات، وتعيين عنق الزجاجة، وإنشاء مصفوفة السرعات المعيارية.
+            {% else %}
+              The following sequential assets, sensor protocols, bottleneck designation, and product rate speed matrix will be generated:
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="fs-table" id="previewTable">
+          <thead>
+            <tr>
+              <th style="width: 80px;">SEQ</th>
+              <th>MACHINE CODE</th>
+              <th>NAME</th>
+              <th>CATEGORY</th>
+              <th>CRITICALITY</th>
+              <th>NAMEPLATE SPEED</th>
+              <th>SENSOR PROTOCOL</th>
+              <th>BOTTLENECK</th>
+            </tr>
+          </thead>
+          <tbody id="previewTableBody">
+            <!-- Populated via JavaScript dynamically based on preset -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Submit Action Bar -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px; align-items: center;">
+      <a href="{% url 'products_list' %}" class="fs-btn fs-btn-secondary">
+        {% trans "Cancel" %}
+      </a>
+      <button type="submit" class="fs-btn fs-btn-primary" style="padding: 12px 28px; font-size: 15px; font-weight: 700;">
+        {% if is_rtl %}نشر الخط في 60 ثانية وبناء الطوبولوجيا{% else %}Deploy Line in 60 Seconds & Build Topology{% endif %}
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+const PRESETS_DATA = {
+  WATER: {
+    code: 'LINE-WTR-02',
+    name: 'High-Speed Water Line #2',
+    oee: 85.0,
+    machines: [
+      { seq: 10, code: 'BM-10', name: 'Rotary Stretch Blow Molder', cat: 'BLOW_MOLDER', rank: 'B', cpm: '150 CPM', proto: 'GPIO Pulse', bn: false },
+      { seq: 20, code: 'RN-20', name: 'Rotary Air/Water Rinser', cat: 'RINSER', rank: 'B', cpm: '140 CPM', proto: 'Modbus TCP', bn: false },
+      { seq: 30, code: 'FL-30', name: 'Gravity Monoblock Filler', cat: 'FILLER', rank: 'A', cpm: '120 CPM', proto: 'Modbus TCP', bn: true },
+      { seq: 40, code: 'CP-40', name: 'Rotary Pick-and-Place Capper', cat: 'CAPPER', rank: 'B', cpm: '140 CPM', proto: 'GPIO Pulse', bn: false },
+      { seq: 50, code: 'LB-50', name: 'Hot Melt Roll-Fed Labeler', cat: 'LABELER', rank: 'B', cpm: '130 CPM', proto: 'Modbus TCP', bn: false },
+      { seq: 60, code: 'PK-60', name: 'Wrap-Around Case Packer', cat: 'PACKER', rank: 'C', cpm: '130 CPM', proto: 'Simulated', bn: false },
+      { seq: 70, code: 'PL-70', name: 'High-Level Robotic Palletizer', cat: 'PALLETIZER', rank: 'C', cpm: '140 CPM', proto: 'Simulated', bn: false },
+    ]
+  },
+  CSD: {
+    code: 'LINE-CSD-02',
+    name: 'CSD Canning & Bottling Line #2',
+    oee: 82.0,
+    machines: [
+      { seq: 10, code: 'RN-10', name: 'Ionized Air Can Rinser', cat: 'RINSER', rank: 'B', cpm: '180 CPM', proto: 'GPIO Pulse', bn: false },
+      { seq: 20, code: 'FL-20', name: 'Isobaric Counter-Pressure Filler', cat: 'FILLER', rank: 'A', cpm: '150 CPM', proto: 'Modbus TCP', bn: true },
+      { seq: 30, code: 'CP-30', name: 'Rotary Can Seamer & Capper', cat: 'CAPPER', rank: 'B', cpm: '180 CPM', proto: 'GPIO Pulse', bn: false },
+      { seq: 40, code: 'PT-40', name: 'Multi-Zone Tunnel Pasteurizer', cat: 'OTHER', rank: 'B', cpm: '160 CPM', proto: 'Modbus TCP', bn: false },
+      { seq: 50, code: 'LB-50', name: 'Steam Shrink Sleeve Labeler', cat: 'LABELER', rank: 'C', cpm: '170 CPM', proto: 'Simulated', bn: false },
+    ]
+  },
+  OIL: {
+    code: 'LINE-OIL-02',
+    name: 'Edible Cooking Oil Line #2',
+    oee: 80.0,
+    machines: [
+      { seq: 10, code: 'FL-10', name: 'Linear Servo Piston Filler (1L)', cat: 'FILLER', rank: 'A', cpm: '90 CPM', proto: 'Modbus TCP', bn: true },
+      { seq: 20, code: 'ND-20', name: 'Liquid Nitrogen Headspace Doser', cat: 'OTHER', rank: 'B', cpm: '110 CPM', proto: 'GPIO Pulse', bn: false },
+      { seq: 30, code: 'SL-30', name: 'Electromagnetic Induction Foil Sealer', cat: 'SEALER', rank: 'B', cpm: '110 CPM', proto: 'Modbus TCP', bn: false },
+      { seq: 40, code: 'LB-40', name: 'High-Precision Self-Adhesive Wrap Labeler', cat: 'LABELER', rank: 'C', cpm: '100 CPM', proto: 'Simulated', bn: false },
+    ]
+  }
+};
+
+function updatePresetPreview(presetKey) {
+  const data = PRESETS_DATA[presetKey] || PRESETS_DATA.WATER;
+  document.getElementById('line_code').value = data.code;
+  document.getElementById('line_name').value = data.name;
+  document.getElementById('target_oee').value = data.oee;
+
+  // Update visual card borders
+  document.querySelectorAll('.preset-card').forEach(card => {
+    card.style.borderColor = '#E2E8F0';
+    card.style.borderWidth = '1px';
+  });
+  const checkedRadio = document.querySelector('input[name="preset_key"]:checked');
+  if (checkedRadio) {
+    const parentCard = checkedRadio.closest('.preset-card');
+    if (parentCard) {
+      parentCard.style.borderColor = '#2563EB';
+      parentCard.style.borderWidth = '2px';
+    }
+  }
+
+  // Render Table Rows
+  const tbody = document.getElementById('previewTableBody');
+  tbody.innerHTML = '';
+  data.machines.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-mono" style="font-weight: 700; color: #475569;">#${m.seq}</td>
+      <td class="font-mono" style="font-weight: 700; color: #0F172A;">${m.code}</td>
+      <td style="font-weight: 600; color: #1E293B;">${m.name}</td>
+      <td><span class="fs-process-badge">${m.cat}</span></td>
+      <td><span class="fs-role-tag">${m.rank}</span></td>
+      <td class="font-mono">${m.cpm}</td>
+      <td style="font-size: 12px; color: #64748B;">${m.proto}</td>
+      <td>
+        ${m.bn ? '<span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700; border: 1px solid #FCD34D;">BOTTLENECK</span>' : '<span style="color: #94A3B8;">-</span>'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  updatePresetPreview('WATER');
+});
+</script>
+{% endblock %}
+

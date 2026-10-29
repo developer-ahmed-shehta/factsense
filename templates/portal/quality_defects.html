@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-quality-defects-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% trans "Scrap Defect Logging, Root Cause Categorization & Financial Yield Loss" %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 8px;">
+      <a href="{% url 'quality_home' %}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        &larr; {% trans "Back to SPC Hub" %}
+      </a>
+      <a href="{% url 'operator_home' %}" class="fs-btn fs-btn-primary" style="padding: 7px 14px; font-size: 13px;">
+        {% trans "Operator Scrap Numpad" %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary KPI Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Total Discarded Scrap Pieces" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #DC2626; margin: 4px 0;">
+        {{ total_scrap_pieces }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {% trans "Units logged via operator touch numpad" %}
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Total Financial Scrap Loss" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #7C3AED; margin: 4px 0;">
+        ${{ total_scrap_cost|floatformat:2 }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {% trans "Direct raw material cost loss" %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Defects Table -->
+  <div class="fs-table-card" style="padding: 20px 24px;">
+    <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 14px 0;">
+      {% trans "Scrap Defect Incident Ledger" %}
+    </h3>
+
+    <div style="overflow-x: auto;">
+      <table class="fs-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>{% trans "Timestamp" %}</th>
+            <th>{% trans "Asset" %}</th>
+            <th>{% trans "Product SKU" %}</th>
+            <th>{% trans "Defect Reason" %}</th>
+            <th style="text-align: right;">{% trans "Scrap Quantity" %}</th>
+            <th style="text-align: right;">{% trans "Financial Cost" %}</th>
+            <th>{% trans "Disposition" %}</th>
+            <th>{% trans "Operator" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in recent_defects %}
+            <tr>
+              <td class="font-mono" style="font-size: 12px;">{{ d.timestamp|date:"Y-m-d H:i:s" }}</td>
+              <td><strong>{{ d.machine.code }}</strong> - {{ d.machine.name }}</td>
+              <td><span class="fs-pill font-mono">{{ d.product.sku }}</span></td>
+              <td style="font-weight: 600; color: var(--fs-text-primary);">
+                {% if d.reason %}
+                  {% if is_rtl and d.reason.name_ar %}{{ d.reason.name_ar }}{% else %}{{ d.reason.name }}{% endif %}
+                {% else %}
+                  General Scrap
+                {% endif %}
+              </td>
+              <td class="font-mono font-bold" style="text-align: right; color: #DC2626;">
+                +{{ d.quantity_pieces }}
+              </td>
+              <td class="font-mono font-bold" style="text-align: right;">
+                ${{ d.financial_cost|floatformat:2 }}
+              </td>
+              <td>
+                <span class="fs-pill font-mono" style="font-size: 11px;">
+                  {{ d.disposition }}
+                </span>
+              </td>
+              <td style="font-size: 12px;">{{ d.operator.username|default:"System" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--fs-text-secondary); padding: 24px;">
+                {% trans "No defect records logged yet." %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

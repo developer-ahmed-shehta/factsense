@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if is_rtl %}سجل التوقفات ومؤشرات الاعتمادية{% else %}Stoppages &amp; Reliability Intelligence{% endif %} · {{ BRAND_NAME }}
+{% endblock %}
+
+{% block content %}
+<div class="fs-stoppages-page" style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Header & Line Switcher -->
+  <div class="fs-page-header" style="background: #FFFFFF; padding: 20px 24px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <span class="fs-role-tag" style="background: #EF4444; color: #FFFFFF; font-weight: 700;">
+          DOWNTIME INTELLIGENCE
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0; color: #0F172A;">
+          {% if is_rtl %}سجل التوقفات، تحليل باريتو 80/20 ومؤشرات الاعتمادية{% else %}Stoppage Registry, Juran 80/20 Pareto &amp; Reliability KPIs{% endif %}
+        </h1>
+      </div>
+      <p class="fs-page-subtitle" style="color: #64748B; margin: 0;">
+        Identify the "Vital Few" root causes responsible for 80% of lost availability, and audit MTBF/MTTR reliability metrics.
+      </p>
+    </div>
+
+    <!-- Line Selector -->
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <form method="GET" action="" style="display: inline-flex; align-items: center; gap: 8px; margin: 0;">
+        <label for="lineSelect" style="font-size: 12px; font-weight: 700; color: #64748B;">LINE:</label>
+        <select name="line" id="lineSelect" class="fs-form-select" onchange="this.form.submit()" style="min-width: 180px; font-size: 13px; font-weight: 600;">
+          {% for l in lines %}
+            <option value="{{ l.code }}" {% if selected_line and selected_line.code == l.code %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <a href="{% url 'smed_home' %}?line={{ selected_line.code }}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}تبديل القوالب (SMED){% else %}SMED Changeovers{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Reliability KPIs Summary Cards (MTBF, MTTR, MTTF, Failure Rate) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    
+    <div class="fs-table-card" style="padding: 20px; border-top: 4px solid #10B981;">
+      <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">
+        MTBF (MEAN TIME BETWEEN FAILURES)
+      </div>
+      <div class="font-mono" style="font-size: 32px; font-weight: 800; color: #0F172A; margin: 6px 0;">
+        {{ reliability.mtbf_hours }} <span style="font-size: 14px; font-weight: 600; color: #64748B;">hrs</span>
+      </div>
+      <div style="font-size: 12px; color: #64748B;">
+        {{ reliability.mtbf_minutes }} Operating Minutes / Breakdown
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px; border-top: 4px solid #EF4444;">
+      <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">
+        MTTR (MEAN TIME TO REPAIR)
+      </div>
+      <div class="font-mono" style="font-size: 32px; font-weight: 800; color: #EF4444; margin: 6px 0;">
+        {{ reliability.mttr_minutes }} <span style="font-size: 14px; font-weight: 600; color: #64748B;">min</span>
+      </div>
+      <div style="font-size: 12px; color: #64748B;">
+        Average duration to repair &amp; release
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px; border-top: 4px solid #3B82F6;">
+      <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">
+        FAILURE RATE (&lambda;)
+      </div>
+      <div class="font-mono" style="font-size: 32px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">
+        {{ reliability.failure_rate_per_hour }}
+      </div>
+      <div style="font-size: 12px; color: #64748B;">
+        Failures / Operating Hour (7-day window)
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 20px; border-top: 4px solid #F59E0B;">
+      <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">
+        TOTAL BREAKDOWN DOWNTIME
+      </div>
+      <div class="font-mono" style="font-size: 32px; font-weight: 800; color: #B45309; margin: 6px 0;">
+        {{ reliability.total_breakdown_minutes }} <span style="font-size: 14px; font-weight: 600; color: #64748B;">min</span>
+      </div>
+      <div style="font-size: 12px; color: #64748B;">
+        {{ reliability.breakdown_count }} total breakdown incidents
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Juran 80/20 Pareto Distribution Section -->
+  <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin: 0;">
+          {% if is_rtl %}مخطط باريتو 80/20 للأسباب الجذرية للتوقف (Juran Pareto){% else %}Juran 80/20 Downtime Pareto Analysis{% endif %}
+        </h2>
+        <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">
+          80% of downtime is typically generated by 20% of critical root causes ("The Vital Few").
+        </p>
+      </div>
+
+      <!-- Tab Buttons for Duration vs Frequency -->
+      <div style="display: flex; gap: 6px;">
+        <button type="button" id="btnParetoDuration" onclick="showParetoTab('duration')" class="fs-btn fs-btn-primary" style="padding: 6px 14px; font-size: 12px;">
+          By Duration (Minutes)
+        </button>
+        <button type="button" id="btnParetoFreq" onclick="showParetoTab('frequency')" class="fs-btn fs-btn-secondary" style="padding: 6px 14px; font-size: 12px;">
+          By Frequency (Occurrences)
+        </button>
+      </div>
+    </div>
+
+    <!-- Pareto Table / Bars: By Duration -->
+    <div id="paretoDurationView">
+      <table class="fs-table" style="font-size: 13px;">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Root Cause / Category</th>
+            <th>Department</th>
+            <th>Downtime (Min)</th>
+            <th>Incident Count</th>
+            <th>Cumulative %</th>
+            <th>Pareto Classification</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in pareto.by_duration %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700;">#{{ forloop.counter }}</td>
+              <td style="font-weight: 700; color: #0F172A;">
+                {{ row.label }}
+              </td>
+              <td><span class="fs-role-tag" style="background: #F1F5F9; color: #475569;">{{ row.category }}</span></td>
+              <td class="font-mono" style="font-weight: 700; color: #DC2626;">{{ row.minutes }} m</td>
+              <td class="font-mono">{{ row.count }}</td>
+              <td class="font-mono" style="font-weight: 700;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; min-width: 60px;">
+                    <div style="height: 100%; width: {{ row.cum_pct }}%; background: {% if row.is_vital_few %}#EF4444{% else %}#3B82F6{% endif %};"></div>
+                  </div>
+                  <span>{{ row.cum_pct }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if row.is_vital_few %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 800;">VITAL FEW (80%)</span>
+                {% else %}
+                  <span class="fs-role-tag" style="background: #F1F5F9; color: #64748B;">Useful Many</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" style="text-align: center; color: #64748B;">No stoppage records available for Pareto analysis.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pareto Table: By Frequency (Hidden by default) -->
+    <div id="paretoFreqView" style="display: none;">
+      <table class="fs-table" style="font-size: 13px;">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Root Cause / Category</th>
+            <th>Department</th>
+            <th>Incident Count</th>
+            <th>Total Minutes</th>
+            <th>Cumulative %</th>
+            <th>Pareto Classification</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in pareto.by_frequency %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700;">#{{ forloop.counter }}</td>
+              <td style="font-weight: 700; color: #0F172A;">
+                {{ row.label }}
+              </td>
+              <td><span class="fs-role-tag" style="background: #F1F5F9; color: #475569;">{{ row.category }}</span></td>
+              <td class="font-mono" style="font-weight: 700; color: #2563EB;">{{ row.count }}x</td>
+              <td class="font-mono">{{ row.minutes }} m</td>
+              <td class="font-mono" style="font-weight: 700;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; min-width: 60px;">
+                    <div style="height: 100%; width: {{ row.cum_pct }}%; background: {% if row.is_vital_few %}#EF4444{% else %}#3B82F6{% endif %};"></div>
+                  </div>
+                  <span>{{ row.cum_pct }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if row.is_vital_few %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 800;">VITAL FEW (80%)</span>
+                {% else %}
+                  <span class="fs-role-tag" style="background: #F1F5F9; color: #64748B;">Useful Many</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" style="text-align: center; color: #64748B;">No stoppage records available for Pareto analysis.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Active / Recent Stoppages Registry Table -->
+  <div class="fs-table-card" style="padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin: 0;">
+        {% if is_rtl %}سجل أحداث التوقف الأخيرة (Stoppage Registry){% else %}Active &amp; Historical Stoppages Registry{% endif %}
+      </h2>
+      <span class="fs-role-tag" style="background: #F1F5F9; color: #475569;">
+        Showing latest 30 events
+      </span>
+    </div>
+
+    <table class="fs-table" style="font-size: 13px;">
+      <thead>
+        <tr>
+          <th>Event ID</th>
+          <th>Machine Asset</th>
+          <th>Start Time</th>
+          <th>Duration</th>
+          <th>State Code</th>
+          <th>Category &amp; Reason</th>
+          <th>TPM Loss Bucket</th>
+          <th>Department</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in active_events %}
+          <tr>
+            <td class="font-mono">#{{ ev.id|stringformat:".8s" }}</td>
+            <td style="font-weight: 700;">{{ ev.machine.name }} ({{ ev.machine.code }})</td>
+            <td class="font-mono">{{ ev.start_time|date:"Y-m-d H:i:s" }}</td>
+            <td class="font-mono" style="font-weight: 700;">
+              {% if ev.duration_seconds %}
+                {{ ev.duration_seconds|floatformat:0 }}s ({{ ev.duration_seconds|floatformat:0|divisibleby:60 }}m)
+              {% else %}
+                <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">ACTIVE NOW</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="fs-role-tag" style="background: #F1F5F9; color: #334155; font-weight: 600;">
+                {{ ev.state_code }}
+              </span>
+            </td>
+            <td>
+              {% if ev.reason %}
+                <strong>{{ ev.reason.name }}</strong>
+                <div style="font-size: 11px; color: #64748B;">{{ ev.category.name }}</div>
+              {% elif ev.category %}
+                <strong>{{ ev.category.name }}</strong>
+              {% else %}
+                <span style="color: #DC2626; font-weight: 700;">Unclassified</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E;">
+                {{ ev.get_tpm_loss_type_display }}
+              </span>
+            </td>
+            <td>{{ ev.department|default:"Operations" }}</td>
+            <td>
+              {% if ev.end_time %}
+                <span class="fs-role-tag" style="background: #DCFCE7; color: #166534;">CLOSED</span>
+              {% else %}
+                <span class="fs-role-tag" style="background: #EF4444; color: #FFFFFF; font-weight: 800;">ACTIVE</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" style="text-align: center; color: #64748B;">No stoppage events recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  function showParetoTab(tab) {
+    if (tab === 'duration') {
+      document.getElementById('paretoDurationView').style.display = 'block';
+      document.getElementById('paretoFreqView').style.display = 'none';
+      document.getElementById('btnParetoDuration').className = 'fs-btn fs-btn-primary';
+      document.getElementById('btnParetoFreq').className = 'fs-btn fs-btn-secondary';
+    } else {
+      document.getElementById('paretoDurationView').style.display = 'none';
+      document.getElementById('paretoFreqView').style.display = 'block';
+      document.getElementById('btnParetoDuration').className = 'fs-btn fs-btn-secondary';
+      document.getElementById('btnParetoFreq').className = 'fs-btn fs-btn-primary';
+    }
+  }
+</script>
+{% endblock %}
+

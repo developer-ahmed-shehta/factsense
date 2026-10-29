@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Hardware Kiosks & Gateways" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}الأجهزة اللوحية وبوابات إنترنت الأشياء (IoT Gateways & Kiosks){% else %}Hardware Kiosks & IoT Gateways{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          إدارة الأجهزة اللوحية المخصصة للمشغلين، وبوابات الجمع الحافة (Edge Gateways)، والربط السريع عبر رمز الاستجابة السريعة (QR Code).
+        {% else %}
+          Manage shop-floor operator tablet kiosks, edge hardware gateways (Raspberry Pi, Moxa), QR code claiming, and session exclusivity.
+        {% endif %}
+      </p>
+    </div>
+
+    <div>
+      <a href="{% url 'topology' %}" class="fs-btn fs-btn-secondary">
+        {% if is_rtl %}عرض الطوبولوجيا{% else %}Topology View{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 28px; align-items: start;">
+    
+    <!-- QR Code Claim Card -->
+    <div class="fs-table-card" style="padding: 24px; text-align: center; border-top: 4px solid #2563EB;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 8px;">
+        {% if is_rtl %}رمز الربط السريع للجهاز (Claim QR Code){% else %}Quick Hardware Enrollment QR Code{% endif %}
+      </h2>
+      <p style="font-size: 12px; color: #64748B; margin-bottom: 16px;">
+        {% if is_rtl %}
+          امسح هذا الرمز باستخدام كاميرا الجهاز اللوحي أو قارئ البوابة لربط الجهاز فوراً بماكينة الإنتاج.
+        {% else %}
+          Scan this QR code with your tablet camera or edge device scanner to pair this session with an asset.
+        {% endif %}
+      </p>
+
+      <div style="display: inline-block; padding: 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 12px;">
+        <img src="data:image/png;base64,{{ qr_base64 }}" alt="Claim QR Code" style="width: 160px; height: 160px; display: block;">
+      </div>
+
+      <div style="font-size: 12px; color: #64748B; margin-bottom: 4px;">Dynamic Claim Code:</div>
+      <div class="font-mono" style="font-size: 18px; font-weight: 700; color: #2563EB; letter-spacing: 0.1em;">
+        {{ sample_claim_code }}
+      </div>
+    </div>
+
+    <!-- Pair Device Form Card -->
+    <div class="fs-table-card" style="padding: 24px;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 8px;">
+        {% if is_rtl %}ربط جهاز لوحي أو بوابة بماكينة{% else %}Pair Device / Gateway to Machine Asset{% endif %}
+      </h2>
+      <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
+        {% if is_rtl %}
+          أدخل كود المطالبة (Claim Code) واختر الماكينة المحددة لفرض الحصرية وتفعيل لوحة المشغل.
+        {% else %}
+          Enter claim code and bind directly to an industrial machine. Exclusivity ensures one operator session per machine.
+        {% endif %}
+      </p>
+
+      <form method="POST" action="{% url 'claim_kiosk' %}">
+        {% csrf_token %}
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="claim_code">Claim Code *</label>
+          <input type="text" id="claim_code" name="claim_code" class="fs-input font-mono" value="{{ selected_claim|default:sample_claim_code }}" required>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="pair_machine_id">Target Machine Asset *</label>
+          <select id="pair_machine_id" name="machine_id" class="fs-select" required>
+            <option value="">-- Select Machine Asset --</option>
+            {% for m in machines %}
+              <option value="{{ m.id }}">{{ m.line.code }} &ndash; {{ m.code }} ({{ m.name }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="device_name">Device Label / Description</label>
+          <input type="text" id="device_name" name="device_name" class="fs-input" placeholder="e.g. Line 1 Filler Tablet (Samsung Active3)">
+        </div>
+
+        <div style="margin-top: 20px;">
+          <button type="submit" class="fs-btn fs-btn-primary" style="width: 100%;">
+            {% if is_rtl %}تأكيد ربط الجهاز وتفعيله{% else %}Confirm & Bind Device{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Enrolled Devices Table Card -->
+  <div class="fs-table-card">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+        {% if is_rtl %}الأجهزة المسجلة وبوابات جمع البيانات الحافة{% else %}Enrolled Kiosks & Edge Gateways{% endif %}
+      </h2>
+      <span style="font-size: 12px; color: #64748B;">Total Registered: <strong>{{ total_devices }}</strong></span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th>DEVICE NAME</th>
+            <th style="width: 140px;">CLAIM CODE</th>
+            <th>BOUND ASSET</th>
+            <th>STATUS</th>
+            <th>EXCLUSIVITY</th>
+            <th>IP ADDRESS</th>
+            <th>LAST SEEN</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in devices %}
+            <tr>
+              <td>
+                <div style="font-weight: 700; color: #0F172A;">{{ d.device_name }}</div>
+                <div class="font-mono" style="font-size: 10px; color: #64748B;">Token: {{ d.device_token|truncatechars:24 }}</div>
+              </td>
+              <td class="font-mono" style="font-weight: 700; color: #2563EB;">{{ d.claim_code }}</td>
+              <td>
+                {% if d.machine %}
+                  <div style="font-weight: 600; color: #1E293B;">{{ d.machine.name }}</div>
+                  <div class="font-mono" style="font-size: 11px; color: #64748B;">{{ d.machine.code }} [{{ d.machine.line.code }}]</div>
+                {% else %}
+                  <span style="color: #94A3B8; font-style: italic;">Unassigned</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if d.status == 'ACTIVE' %}
+                  <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">ACTIVE / PAIRED</span>
+                {% elif d.status == 'LOCKED' %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">MAINTENANCE LOCK</span>
+                {% else %}
+                  <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700;">PENDING CLAIM</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if d.is_exclusive %}
+                  <span class="font-mono" style="font-weight: 700; color: #16A34A; font-size: 11px;">1-OPERATOR LOCK</span>
+                {% else %}
+                  <span style="color: #64748B; font-size: 11px;">Shared</span>
+                {% endif %}
+              </td>
+              <td class="font-mono" style="font-size: 12px; color: #475569;">
+                {{ d.ip_address|default:"-" }}
+              </td>
+              <td style="font-size: 12px; color: #64748B;">
+                {{ d.last_seen_at|date:"Y-m-d H:i"|default:"Recently" }}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 36px; color: #64748B;">
+                No devices enrolled. Pair your first tablet or IoT gateway using the claim card above.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

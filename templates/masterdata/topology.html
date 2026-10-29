@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Factory Topology Hub" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header & Line Selector -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}مخطط طوبولوجيا خط الإنتاج التفاعلي{% else %}Interactive Factory Topology Hub{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          مخطط بصري تفاعلي يمثل التسلسل الفيزيائي للأصول، وتدفق المنتج على السيور، وتعيين نقطة الاختناق (عنق الزجاجة).
+        {% else %}
+          Visual SVG node graph representing the physical machine sequence on the line, conveyor flow, and bottleneck constraints.
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- Actions / Line Switcher -->
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <form method="GET" action="{% url 'topology' %}" style="display: flex; gap: 8px; align-items: center; margin: 0;">
+        <label for="line_id" style="font-size: 13px; font-weight: 600; color: #475569;">
+          {% if is_rtl %}خط الإنتاج:{% else %}Production Line:{% endif %}
+        </label>
+        <select name="line_id" id="line_id" class="fs-select" onchange="this.form.submit()" style="min-width: 220px;">
+          {% for l in lines %}
+            <option value="{{ l.id }}" {% if selected_line and selected_line.id == l.id %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      {% if can_edit or request.active_role == 'admin' or request.active_role == 'planner' %}
+        <a href="{% url 'wizard' %}" class="fs-btn fs-btn-primary">
+          {% if is_rtl %}معالج إضافة خط جديد{% else %}Onboarding Wizard{% endif %}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if selected_line %}
+    <!-- Line Metadata Banner -->
+    <div class="fs-table-card" style="padding: 16px 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #F8FAFC;">
+      <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+        <div>
+          <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">SITE / FACILITY</span>
+          <div style="font-weight: 700; color: #0F172A;">{{ selected_line.factory.name }}</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">TOTAL ASSETS</span>
+          <div style="font-weight: 700; color: #0F172A;">{{ total_machines }} Machines</div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">DESIGNATED BOTTLENECK</span>
+          <div style="font-weight: 700; color: #B45309;">
+            {% if bottleneck_machine %}
+              {{ bottleneck_machine.name }} ({{ bottleneck_machine.code }}) · {{ bottleneck_machine.ideal_run_rate_cpm }} CPM
+            {% else %}
+              <span style="color: #64748B;">Not Configured</span>
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          <span style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">ACTIVE PRODUCT SKU</span>
+          <div style="font-weight: 700; color: #2563EB;">
+            {{ selected_line.current_product.name|default:"Not Assigned" }}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <a href="{% url 'machines_list' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+          {% if is_rtl %}إدارة الماكينات{% else %}Manage Assets{% endif %}
+        </a>
+        <a href="{% url 'rates_matrix' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+          {% if is_rtl %}مصفوفة السرعات{% else %}Speed Matrix{% endif %}
+        </a>
+      </div>
+    </div>
+
+    <!-- Interactive SVG Topology Canvas Card -->
+    <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 14px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.05em;">
+          {% if is_rtl %}
+            مخطط تسلسل خط الإنتاج وتدفق العبوات (Flow Direction: {% if is_rtl %}يمين إلى يسار RTL{% else %}يسار إلى يمين LTR{% endif %})
+          {% else %}
+            Sequential Machine Flow Graph (Flow Direction: {% if is_rtl %}Right-to-Left RTL{% else %}Left-to-Right LTR{% endif %})
+          {% endif %}
+        </h2>
+        <span style="font-size: 12px; color: #64748B;">
+          {% if is_rtl %}انقر فوق أي ماكينة لمعاينة بيانات الحساسات والربط{% else %}Click any asset node to inspect sensor & kiosk status{% endif %}
+        </span>
+      </div>
+
+      <!-- SVG Container with dynamic responsive sizing -->
+      <div style="overflow-x: auto; padding: 10px 0; background: #FAFAFA; border: 1px solid #E2E8F0; border-radius: 8px;">
+        <svg viewBox="0 0 {{ svg_width }} {{ svg_height }}" width="100%" height="240" style="display: block;" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Animated Flow Pattern Definition -->
+            <style>
+              @keyframes conveyorPulse {
+                from { stroke-dashoffset: 24; }
+                to { stroke-dashoffset: 0; }
+              }
+              .conveyor-track {
+                stroke: #CBD5E1;
+                stroke-width: 6;
+                stroke-linecap: round;
+              }
+              .conveyor-flow {
+                stroke: #2563EB;
+                stroke-width: 3;
+                stroke-dasharray: 6 6;
+                animation: conveyorPulse 1.2s linear infinite;
+              }
+              .node-circle {
+                transition: transform 0.2s ease, filter 0.2s ease;
+                cursor: pointer;
+              }
+              .node-circle:hover {
+                filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+              }
+            </style>
+          </defs>
+
+          <!-- Conveyor Connection Pipes -->
+          {% for conn in svg_connectors %}
+            <line x1="{{ conn.x1 }}" y1="{{ conn.y1 }}" x2="{{ conn.x2 }}" y2="{{ conn.y2 }}" class="conveyor-track" />
+            <line x1="{{ conn.x1 }}" y1="{{ conn.y1 }}" x2="{{ conn.x2 }}" y2="{{ conn.y2 }}" class="conveyor-flow" />
+          {% endfor %}
+
+          <!-- Machine Nodes -->
+          {% for node in svg_nodes %}
+            <g class="node-circle" onclick="inspectMachine('{{ node.machine.id }}', '{{ node.machine.code }}', '{{ node.machine.name|escapejs }}', '{{ node.machine.category }}', '{{ node.machine.sequence_order }}', '{{ node.machine.criticality_rank }}', '{{ node.machine.ideal_run_rate_cpm }}', '{{ node.is_bottleneck }}', '{{ node.machine.sensor_protocol }}', '{{ node.machine.sensor_ip|default:"None" }}', '{{ node.paired_kiosks.first.claim_code|default:"None" }}')">
+              
+              <!-- Bottleneck Warning Outer Halo Ring -->
+              {% if node.is_bottleneck %}
+                <circle cx="{{ node.cx }}" cy="{{ node.cy }}" r="46" fill="none" stroke="#F59E0B" stroke-width="3" stroke-dasharray="4 4" />
+              {% endif %}
+
+              <!-- Outer Node Circle -->
+              <circle cx="{{ node.cx }}" cy="{{ node.cy }}" r="36" 
+                      fill="{% if node.is_bottleneck %}#FFFBEB{% else %}#FFFFFF{% endif %}" 
+                      stroke="{% if node.is_bottleneck %}#D97706{% else %}#3B82F6{% endif %}" 
+                      stroke-width="3" />
+
+              <!-- Sequence Badge -->
+              <circle cx="{{ node.cx }}" cy="{{ node.cy|add:'-26' }}" r="12" fill="#1E293B" />
+              <text x="{{ node.cx }}" y="{{ node.cy|add:'-22' }}" text-anchor="middle" fill="#FFFFFF" font-size="10" font-family="monospace" font-weight="bold">
+                {{ node.machine.sequence_order }}
+              </text>
+
+              <!-- Node Center Machine Code -->
+              <text x="{{ node.cx }}" y="{{ node.cy|add:'4' }}" text-anchor="middle" fill="#0F172A" font-size="11" font-family="monospace" font-weight="bold">
+                {{ node.machine.code }}
+              </text>
+
+              <!-- Machine Category / Name Tag below Node -->
+              <text x="{{ node.cx }}" y="{{ node.cy|add:'56' }}" text-anchor="middle" fill="#334155" font-size="11" font-weight="600">
+                {{ node.machine.name|truncatechars:18 }}
+              </text>
+
+              <!-- CPM Speed Pill Text -->
+              <text x="{{ node.cx }}" y="{{ node.cy|add:'72' }}" text-anchor="middle" fill="#64748B" font-size="10" font-family="monospace">
+                {{ node.machine.ideal_run_rate_cpm }} CPM
+              </text>
+
+              <!-- Bottleneck indicator tag -->
+              {% if node.is_bottleneck %}
+                <rect x="{{ node.cx|add:'-38' }}" y="{{ node.cy|add:'80' }}" width="76" height="18" rx="9" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1" />
+                <text x="{{ node.cx }}" y="{{ node.cy|add:'92' }}" text-anchor="middle" fill="#92400E" font-size="9" font-weight="bold">
+                  BOTTLENECK
+                </text>
+              {% endif %}
+
+            </g>
+          {% endfor %}
+        </svg>
+      </div>
+
+      <!-- Legend -->
+      <div style="display: flex; gap: 20px; align-items: center; justify-content: center; margin-top: 18px; font-size: 12px; color: #475569; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; border: 2px solid #3B82F6;"></span>
+          <span>Standard Sequential Asset</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #FFFBEB; border: 2px dashed #D97706;"></span>
+          <span>Designated Bottleneck Constraint (Constraint Machine)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="display: inline-block; width: 24px; height: 3px; background: #2563EB;"></span>
+          <span>Animated Conveyor Material Flow</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Machine Inspector Drawer / Card -->
+    <div id="inspectorDrawer" class="fs-table-card" style="padding: 24px; display: none; border-left: 4px solid #2563EB; animation: fadeIn 0.3s ease;">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+        <div>
+          <span id="inspectRankBadge" class="fs-role-tag" style="background: #DBEAFE; color: #1D4ED8; font-weight: 700;">RANK B</span>
+          <span id="inspectBottleneckBadge" class="fs-role-tag" style="display: none; background: #FEF3C7; color: #92400E; font-weight: 700;">BOTTLENECK</span>
+          <h2 id="inspectName" style="font-size: 18px; font-weight: 700; color: #0F172A; margin-top: 6px;">Asset Name</h2>
+          <div style="font-size: 13px; color: #64748B;">
+            Sequence Position: <strong id="inspectSeq" class="font-mono">#10</strong> · Code: <strong id="inspectCode" class="font-mono">CODE</strong>
+          </div>
+        </div>
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeInspector()" style="padding: 6px 12px; font-size: 12px;">
+          {% trans "Close" %}
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px; background: #F8FAFC; border-radius: 6px; margin-bottom: 20px;">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">EQUIPMENT CATEGORY</div>
+          <div id="inspectCat" style="font-weight: 700; color: #0F172A; margin-top: 2px;">FILLER</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">IDEAL RUN RATE</div>
+          <div id="inspectCpm" class="font-mono" style="font-weight: 700; color: #0F172A; margin-top: 2px;">120.0 CPM</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">SENSOR PROTOCOL</div>
+          <div id="inspectProto" style="font-weight: 700; color: #0F172A; margin-top: 2px;">MODBUS_TCP</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">SENSOR / GATEWAY IP</div>
+          <div id="inspectIp" class="font-mono" style="font-weight: 700; color: #0F172A; margin-top: 2px;">192.168.1.100</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">PAIRED KIOSK TOKEN</div>
+          <div id="inspectKiosk" class="font-mono" style="font-weight: 700; color: #16A34A; margin-top: 2px;">FL01-8842</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <a id="inspectEditLink" href="{% url 'machines_list' %}" class="fs-btn fs-btn-secondary">
+          {% if is_rtl %}تعديل إعدادات الماكينة{% else %}Edit Asset Parameters{% endif %}
+        </a>
+        <a href="{% url 'kiosk_pairing' %}" class="fs-btn fs-btn-primary">
+          {% if is_rtl %}ربط جهاز لوحي (Kiosk){% else %}Pair Kiosk Device{% endif %}
+        </a>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="fs-table-card" style="padding: 48px; text-align: center;">
+      <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin-bottom: 8px;">
+        {% if is_rtl %}لا توجد خطوط إنتاج معرفة حالياً{% else %}No Production Lines Configured{% endif %}
+      </h3>
+      <p style="font-size: 13px; color: #64748B; margin-bottom: 20px;">
+        {% if is_rtl %}
+          استخدم معالج الإعداد السريع لنشر خط إنتاج في 60 ثانية مع جميع الأصول ومصفوفة السرعات.
+        {% else %}
+          Use the 60-Second Onboarding Wizard to deploy your first automated line with sequential assets and speed matrix.
+        {% endif %}
+      </p>
+      <a href="{% url 'wizard' %}" class="fs-btn fs-btn-primary">
+        {% if is_rtl %}تشغيل المعالج السريع{% else %}Launch Onboarding Wizard{% endif %}
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+function inspectMachine(id, code, name, cat, seq, rank, cpm, isBn, proto, ip, kiosk) {
+  const drawer = document.getElementById('inspectorDrawer');
+  drawer.style.display = 'block';
+
+  document.getElementById('inspectName').innerText = name;
+  document.getElementById('inspectCode').innerText = code;
+  document.getElementById('inspectSeq').innerText = '#' + seq;
+  document.getElementById('inspectCat').innerText = cat;
+  document.getElementById('inspectCpm').innerText = cpm + ' CPM';
+  document.getElementById('inspectProto').innerText = proto;
+  document.getElementById('inspectIp').innerText = ip;
+  document.getElementById('inspectKiosk').innerText = kiosk !== 'None' ? kiosk : 'Unpaired';
+  
+  const rankBadge = document.getElementById('inspectRankBadge');
+  rankBadge.innerText = 'RANK ' + rank;
+
+  const bnBadge = document.getElementById('inspectBottleneckBadge');
+  if (isBn === 'True' || isBn === true) {
+    bnBadge.style.display = 'inline-block';
+  } else {
+    bnBadge.style.display = 'none';
+  }
+
+  drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeInspector() {
+  document.getElementById('inspectorDrawer').style.display = 'none';
+}
+</script>
+{% endblock %}
+

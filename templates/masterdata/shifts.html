@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Shift Lifecycle & Schedules" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}إدارة الورديات وفترات التوقف المخططة{% else %}Shift Lifecycle & Schedules{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          تعريف أوقات الورديات والاستراحات المخططة. وفق معيار ISO 22400: زمن الإنتاج المخطط = نافذة الوردية مطروحاً منها الاستراحات غير مدفوعة الأجر.
+        {% else %}
+          Configure operational shifts and planned breaks. ISO 22400 Planned Production Time = Scheduled Window minus Excluded Unpaid Breaks.
+        {% endif %}
+      </p>
+    </div>
+
+    {% if can_edit %}
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="openBreakModal()">
+          {% if is_rtl %}إضافة استراحة مخططة{% else %}Add Planned Break{% endif %}
+        </button>
+        <button type="button" class="fs-btn fs-btn-primary" onclick="openShiftModal()">
+          {% if is_rtl %}إضافة وردية جديدة{% else %}Add Shift{% endif %}
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ISO 22400 Calculation Information Banner -->
+  <div class="fs-table-card" style="padding: 16px 24px; margin-bottom: 24px; background: #F8FAFC; border-left: 4px solid #16A34A; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">ISO 22400-2 TIME ACCOUNTING BASELINE</span>
+      <div style="font-size: 13px; color: #334155; margin-top: 4px; line-height: 1.5;">
+        <strong>Planned Production Time (PPT)</strong> = Total Shift Scheduled Window &minus; Excluded Planned Breaks.<br>
+        Availability losses are deducted strictly from PPT to prevent double-counting non-operating periods.
+      </div>
+    </div>
+    <div style="display: flex; gap: 20px; font-family: monospace; font-size: 13px;">
+      <div style="text-align: center;">
+        <div style="font-size: 11px; color: #64748B;">CONFIGURED SHIFTS</div>
+        <strong style="font-size: 16px; color: #0F172A;">{{ total_shifts }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shifts Table Card -->
+  <div class="fs-table-card" style="margin-bottom: 28px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+        {% if is_rtl %}الورديات التشغيلية للمصنع{% else %}Operational Plant Shifts{% endif %}
+      </h2>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">SEQ</th>
+            <th style="width: 130px;">CODE</th>
+            <th>NAME</th>
+            <th>SCHEDULED WINDOW</th>
+            <th>SCHEDULED MINUTES</th>
+            <th>UNPAID BREAKS</th>
+            <th>NET PLANNED OPERATING TIME</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in shifts %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700; color: #475569;">#{{ s.sequence }}</td>
+              <td class="font-mono" style="font-weight: 700; color: #0F172A;">{{ s.code }}</td>
+              <td>
+                <div style="font-weight: 600; color: #1E293B;">
+                  {% if is_rtl and s.name_ar %}{{ s.name_ar }}{% else %}{{ s.name }}{% endif %}
+                </div>
+              </td>
+              <td class="font-mono" style="font-weight: 600; color: #2563EB;">
+                {{ s.start_time|time:"H:i" }} &ndash; {{ s.end_time|time:"H:i" }}
+              </td>
+              <td class="font-mono">{{ s.total_scheduled_minutes }} min</td>
+              <td class="font-mono" style="color: #DC2626;">&minus; {{ s.unpaid_break_minutes }} min</td>
+              <td class="font-mono" style="font-weight: 700; color: #16A34A;">
+                {{ s.planned_operating_minutes }} min ({{ s.planned_operating_minutes|floatformat:0 }}m / 60 = {% widthratio s.planned_operating_minutes 60 1 %}h)
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 36px; color: #64748B;">
+                No shifts configured. Click "Add Shift" to configure plant operating windows.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Planned Breaks Breakdown Table Card -->
+  <div class="fs-table-card">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+        {% if is_rtl %}تفاصيل الاستراحات المخططة المعفاة من OEE{% else %}Scheduled Planned Breaks (Excluded from OEE Calculation){% endif %}
+      </h2>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th>SHIFT</th>
+            <th>BREAK NAME</th>
+            <th>WINDOW</th>
+            <th>DURATION</th>
+            <th>DEDUCTION STATUS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in shifts %}
+            {% for b in s.breaks.all %}
+              <tr>
+                <td class="font-mono" style="font-weight: 700; color: #0F172A;">{{ s.code }}</td>
+                <td style="font-weight: 600; color: #1E293B;">
+                  {% if is_rtl and b.name_ar %}{{ b.name_ar }}{% else %}{{ b.name }}{% endif %}
+                </td>
+                <td class="font-mono">{{ b.start_time|time:"H:i" }} &ndash; {{ b.end_time|time:"H:i" }}</td>
+                <td class="font-mono">{{ b.duration_minutes }} min</td>
+                <td>
+                  {% if b.is_unpaid %}
+                    <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">
+                      DEDUCTED FROM PLANNED TIME
+                    </span>
+                  {% else %}
+                    <span class="fs-role-tag" style="background: #E2E8F0; color: #475569;">
+                      PAID / INCLUDED IN TIME
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 24px; color: #64748B;">
+                  No specific planned breaks registered for {{ s.name }}. Using default flat {{ s.unpaid_break_minutes }} min deduction.
+                </td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Add Shift -->
+<div id="shiftModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 520px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}إضافة وردية تشغيلية{% else %}Add Production Shift{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeShiftModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'shift_add' %}">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div class="fs-form-group">
+          <label class="fs-label" for="shift_factory_id">Factory Site *</label>
+          <select id="shift_factory_id" name="factory_id" class="fs-select" required>
+            {% for f in factories %}
+              <option value="{{ f.id }}">{{ f.name }} ({{ f.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_code">Shift Code *</label>
+            <input type="text" id="shift_code" name="code" class="fs-input font-mono" placeholder="e.g. SHIFT-1" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_seq">Sequence *</label>
+            <input type="number" id="shift_seq" name="sequence" class="fs-input font-mono" value="1" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_name">Name (English) *</label>
+            <input type="text" id="shift_name" name="name" class="fs-input" placeholder="e.g. Morning Shift" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_name_ar">Name (Arabic)</label>
+            <input type="text" id="shift_name_ar" name="name_ar" class="fs-input" placeholder="الوردية الصباحية">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_st">Start Time *</label>
+            <input type="time" id="shift_st" name="start_time" class="fs-input font-mono" value="07:00" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_et">End Time *</label>
+            <input type="time" id="shift_et" name="end_time" class="fs-input font-mono" value="15:00" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="shift_unpaid">Unpaid Mins</label>
+            <input type="number" id="shift_unpaid" name="unpaid_break_minutes" class="fs-input font-mono" value="30" required>
+          </div>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeShiftModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Add Planned Break -->
+<div id="breakModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 500px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}إضافة استراحة مخططة{% else %}Add Planned Break{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeBreakModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'break_add' %}">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div class="fs-form-group">
+          <label class="fs-label" for="break_shift_id">Shift *</label>
+          <select id="break_shift_id" name="shift_id" class="fs-select" required>
+            {% for s in shifts %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="break_name">Break Name (English) *</label>
+            <input type="text" id="break_name" name="name" class="fs-input" placeholder="e.g. Lunch Break" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="break_name_ar">Break Name (Arabic)</label>
+            <input type="text" id="break_name_ar" name="name_ar" class="fs-input" placeholder="استراحة الغداء">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="break_st">Start Time</label>
+            <input type="time" id="break_st" name="start_time" class="fs-input font-mono" value="12:00" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="break_et">End Time</label>
+            <input type="time" id="break_et" name="end_time" class="fs-input font-mono" value="12:30" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="break_dur">Duration (min)</label>
+            <input type="number" id="break_dur" name="duration_minutes" class="fs-input font-mono" value="30" required>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="break_unpaid" name="is_unpaid" checked style="accent-color: #2563EB; transform: scale(1.2);">
+          <label for="break_unpaid" style="font-size: 13px; font-weight: 600; color: #1E293B; cursor: pointer;">
+            Deduct from Planned Production Time (Unpaid non-working break)
+          </label>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeBreakModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openShiftModal() {
+  document.getElementById('shiftModal').style.display = 'flex';
+}
+function closeShiftModal() {
+  document.getElementById('shiftModal').style.display = 'none';
+}
+function openBreakModal() {
+  document.getElementById('breakModal').style.display = 'flex';
+}
+function closeBreakModal() {
+  document.getElementById('breakModal').style.display = 'none';
+}
+</script>
+{% endblock %}
+

@@ -44,6 +44,9 @@
     </div>
   </footer>
 
+  <!-- Global Notification Drawer (F08) -->
+  {% include 'portal/partials/notification_drawer.html' %}
+
   <!-- Modal Overlays -->
   {% block modals %}{% endblock %}
 
@@ -74,6 +77,41 @@
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     }
+
+    function toggleNotificationDrawer(forceOpen) {
+      const drawer = document.getElementById('fsNotificationDrawer');
+      if (!drawer) return;
+      if (forceOpen === true) {
+        drawer.style.display = 'flex';
+      } else if (forceOpen === false) {
+        drawer.style.display = 'none';
+      } else {
+        drawer.style.display = (drawer.style.display === 'flex') ? 'none' : 'flex';
+      }
+    }
+
+    // Live Unread Alert Counter update
+    function checkAlertCounts() {
+      fetch('/alerts/api/count/')
+        .then(r => r.json())
+        .then(data => {
+          const badge = document.getElementById('navAlertBadge');
+          if (badge && data && data.total_active !== undefined) {
+            if (data.total_active > 0) {
+              badge.innerText = data.total_active;
+              badge.style.display = 'inline-block';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Run initial alert count check if user is logged in
+    {% if request.user.is_authenticated %}
+      document.addEventListener('DOMContentLoaded', checkAlertCounts);
+    {% endif %}
   </script>
   {% block extra_js %}{% endblock %}
 </body>

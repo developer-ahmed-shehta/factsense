@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Header Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}التقارير والتحليلات{% else %}Reports & Analytics{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}الاشتراكات الآلية{% else %}Subscriptions{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                جدولة التوزيع الآلي لتقارير الورديات والإحصائيات عبر البريد الإلكتروني وروبوت Telegram.
+                {% else %}
+                Automated report generation and distribution schedules via Email and Telegram bots.
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-3 rtl:space-x-reverse">
+            <button onclick="document.getElementById('newSubModal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}اشتراك جديد{% else %}New Subscription{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "reports/partials/nav_tabs.html" with active_tab="subscriptions" %}
+
+    <!-- Subscriptions Table Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-8">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Configured Report Subscriptions
+            </h2>
+            <span class="text-xs text-gray-500">
+                Automated Background Distribution
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Subscription Name</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Line</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Report Type</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Format</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Frequency</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Recipients</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Last Sent</th>
+                        <th class="px-4 py-3 text-right rtl:text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for s in subscriptions %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-900">
+                            {{ s.name }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">
+                            {{ s.line.name }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                                {{ s.get_report_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs font-bold text-indigo-700">
+                            {{ s.format }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            {{ s.get_frequency_display }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600 font-mono">
+                            {% if s.recipient_emails %}
+                            <div>Email: {{ s.recipient_emails }}</div>
+                            {% endif %}
+                            {% if s.telegram_chat_id %}
+                            <div>Telegram: {{ s.telegram_chat_id }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">
+                            {{ s.last_sent_at|date:'Y-m-d H:i'|default:"Never" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right rtl:text-left">
+                            <form method="post" action="{% url 'reports_subscription_dispatch' s.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                                    Dispatch Now
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                            No automated report subscriptions configured. Click "New Subscription" above.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Delivery Logs Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Recent Report Dispatch Delivery Logs
+            </h2>
+            <span class="text-xs text-gray-500">
+                Audited Channel Notifications
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Report Type</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Format</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Channel</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Recipient</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono text-xs">
+                    {% for log in recent_logs %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-sans font-bold text-gray-900">{{ log.report_type }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-indigo-700 font-bold">{{ log.format }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700 font-sans">{{ log.get_channel_display }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">{{ log.recipient }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if log.status == 'SENT' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">Sent</span>
+                            {% elif log.status == 'SIMULATED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800">Simulated</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-800">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">{{ log.sent_at|date:'Y-m-d H:i:s' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500 font-sans">
+                            No dispatch delivery attempts recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- New Subscription Modal -->
+<div id="newSubModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900">Configure Automated Report Subscription</h3>
+            <button onclick="document.getElementById('newSubModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'reports_subscription_create' %}" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Subscription Title *</label>
+                <input type="text" name="name" required placeholder="e.g. End-of-Shift Production Brief" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Line Scope *</label>
+                    <select name="line_id" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        {% for l in lines %}
+                        <option value="{{ l.id }}">{{ l.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Report Type</label>
+                    <select name="report_type" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="SHIFT_HANDOVER">Shift Handover Summary</option>
+                        <option value="DAILY_OEE">Daily Line OEE & Loss Waterfall</option>
+                        <option value="QUALITY_SPC">Quality SPC & Giveaway Analysis</option>
+                        <option value="DOWNTIME_PARETO">Equipment Reliability & Pareto</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Export Format</label>
+                    <select name="format" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="PDF">Printable PDF Document</option>
+                        <option value="EXCEL">Excel Workbook (.xlsx)</option>
+                        <option value="BOTH">Both PDF and Excel</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Trigger Frequency</label>
+                    <select name="frequency" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="END_OF_SHIFT">End of Every Shift Window</option>
+                        <option value="DAILY">Daily Morning Digest (07:00)</option>
+                        <option value="WEEKLY">Weekly Operations Review</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Recipient Email Addresses (Comma-separated)</label>
+                <input type="text" name="recipient_emails" placeholder="plant_director@factsense.com, ops_lead@factsense.com" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Telegram Channel / Chat ID (Optional)</label>
+                <input type="text" name="telegram_chat_id" placeholder="@factsense_ops_channel or -1001928471" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('newSubModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-700 shadow-sm">
+                    Save Subscription
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

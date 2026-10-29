@@ -98,6 +98,20 @@ class Machine(models.Model):
     )
     ideal_run_rate_cpm = models.FloatField(default=120.0, help_text="Ideal nameplate rate in CPM (Units/min)")
     is_bottleneck = models.BooleanField(default=False)
+    sensor_protocol = models.CharField(
+        max_length=30,
+        default='SIMULATED',
+        choices=[
+            ('GPIO_PULSE', 'GPIO Digital Pulse'),
+            ('MODBUS_TCP', 'Modbus TCP / IP'),
+            ('MQTT', 'MQTT Telemetry Broker'),
+            ('OPC_UA', 'OPC-UA Server'),
+            ('SIMULATED', 'Internal Virtual Simulator'),
+        ]
+    )
+    sensor_ip = models.GenericIPAddressField(null=True, blank=True, help_text="Edge Gateway or Sensor IP")
+    modbus_address = models.PositiveIntegerField(default=1, help_text="Modbus register / unit ID")
+    pulse_pin = models.PositiveIntegerField(null=True, blank=True, help_text="PLC / GPIO input pin number")
 
     class Meta:
         ordering = ['sequence_order', 'code']
@@ -108,6 +122,10 @@ class Machine(models.Model):
 
     def get_name(self, lang='en'):
         return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+    @property
+    def ideal_cpm(self):
+        return int(self.ideal_run_rate_cpm)
 
 
 class Process(models.Model):
@@ -188,6 +206,10 @@ class Product(models.Model):
         return self.name_ar if lang == 'ar' and self.name_ar else self.name
 
     @property
+    def sku(self):
+        return self.code
+
+    @property
     def cycle_time_display(self):
         return f"{self.ideal_cycle_time_sec:.2f} s ({self.rated_speed_cpm} CPM)"
 
@@ -232,3 +254,174 @@ class Shift(models.Model):
 
     def get_name(self, lang='en'):
         return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+    @property
+    def total_scheduled_minutes(self):
+        from datetime import datetime, date
+        dummy = date(2000, 1, 1)
+        dt_start = datetime.combine(dummy, self.start_time)
+        dt_end = datetime.combine(dummy, self.end_time)
+        if dt_end <= dt_start:
+            dt_end = datetime.combine(date(2000, 1, 2), self.end_time)
+        return int((dt_end - dt_start).total_seconds() / 60)
+
+    @property
+    def planned_operating_minutes(self):
+        total = self.total_scheduled_minutes
+        if hasattr(self, 'breaks') and self.breaks.filter(is_unpaid=True).exists():
+            unpaid = sum(b.duration_minutes for b in self.breaks.filter(is_unpaid=True))
+        else:
+            unpaid = self.unpaid_break_minutes or 0
+        return max(0, total - unpaid)
+
+
+class ReasonCategory(models.Model):
+    """
+    High-level category for stoppage reasons.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    name_ar = models.CharField(max_length=100, blank=True)
+    department = models.CharField(
+        max_length=50,
+        default='OPERATIONS',
+        choices=[
+            ('MECHANICAL', 'Mechanical'),
+            ('ELECTRICAL', 'Electrical'),
+            ('OPERATIONS', 'Operations'),
+            ('QUALITY', 'Quality'),
+            ('SUPPLY_CHAIN', 'Supply Chain'),
+            ('SAFETY', 'Safety'),
+            ('UTILITIES', 'Utilities'),
+        ]
+    )
+    sequence = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name_plural = 'Reason Categories'
+        ordering = ['sequence', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.department})"
+
+    def get_name(self, lang='en'):
+        return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+
+class StoppageReason(models.Model):
+    """
+    Discrete equipment stoppage reason mapped to TPM Six Big Losses.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.ForeignKey(ReasonCategory, on_delete=models.CASCADE, related_name='reasons')
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=150)
+    name_ar = models.CharField(max_length=150, blank=True)
+    tpm_loss_type = models.CharField(
+        max_length=50,
+        default='AVAILABILITY_BREAKDOWN',
+        choices=[
+            ('AVAILABILITY_BREAKDOWN', 'Breakdown Loss (Unplanned Downtime)'),
+            ('AVAILABILITY_CHANGEOVER', 'Setup & Changeover Loss'),
+            ('PERFORMANCE_MINOR_STOP', 'Minor Stoppages (< 5 min)'),
+            ('PERFORMANCE_SPEED_LOSS', 'Reduced Speed Loss'),
+            ('QUALITY_DEFECTS', 'Production Defect & Scrap Loss'),
+            ('QUALITY_STARTUP_SCRAP', 'Startup Reject Loss'),
+        ]
+    )
+    is_planned = models.BooleanField(default=False)
+    force_logout = models.BooleanField(default=False, help_text='Force logout operator session during active lock')
+    standard_resolution_min = models.PositiveIntegerField(default=15)
+
+    class Meta:
+        ordering = ['category__sequence', 'code']
+
+    def __str__(self):
+        return f"{self.name} [{self.code}]"
+
+    def get_name(self, lang='en'):
+        return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+
+class DefectReason(models.Model):
+    """
+    Quality defect taxonomy classification.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=150)
+    name_ar = models.CharField(max_length=150, blank=True)
+    category = models.CharField(max_length=100, default='Packaging')
+    default_disposition = models.CharField(
+        max_length=20,
+        default='SCRAP',
+        choices=[
+            ('SCRAP', 'Scrap / Discard'),
+            ('REWORK', 'Rework / Reprocess'),
+            ('QUARANTINE', 'Quality Quarantine'),
+        ]
+    )
+
+    class Meta:
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.name} [{self.code}]"
+
+    def get_name(self, lang='en'):
+        return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+
+class PlannedBreak(models.Model):
+    """
+    Unpaid or paid break scheduled inside a shift.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE, related_name='breaks')
+    name = models.CharField(max_length=100)
+    name_ar = models.CharField(max_length=100, blank=True)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    duration_minutes = models.PositiveIntegerField(default=15)
+    is_unpaid = models.BooleanField(default=True, help_text='If True, deducted from planned production time')
+
+    class Meta:
+        ordering = ['start_time']
+
+    def __str__(self):
+        return f"{self.name} ({self.duration_minutes}m)"
+
+    def get_name(self, lang='en'):
+        return self.name_ar if lang == 'ar' and self.name_ar else self.name
+
+
+class KioskDevice(models.Model):
+    """
+    Physical touch tablet device paired with an asset.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    machine = models.ForeignKey(Machine, on_delete=models.SET_NULL, null=True, blank=True, related_name='kiosks')
+    device_name = models.CharField(max_length=100)
+    device_token = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    claim_code = models.CharField(max_length=16, unique=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    mac_address = models.CharField(max_length=50, blank=True)
+    status = models.CharField(
+        max_length=20,
+        default='PENDING',
+        choices=[
+            ('ACTIVE', 'Active / Paired'),
+            ('PENDING', 'Pending Claim'),
+            ('LOCKED', 'Locked / Maintenance Hold'),
+        ]
+    )
+    is_exclusive = models.BooleanField(default=True, help_text='Enforces one active operator session at any time')
+    paired_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.device_name} ({self.claim_code}) - {self.status}"

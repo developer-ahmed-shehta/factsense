@@ -1,101 +1,323 @@
 {% extends 'base.html' %}
+{% load static i18n %}
 
 {% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
 
 {% block content %}
 <div class="fs-manager-page">
 
+  <!-- Header with Line Selector -->
   <div class="fs-page-header">
     <div class="fs-page-title-wrap">
       <h1 class="fs-page-title">
         {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
       </h1>
       <p class="fs-page-subtitle">
-        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Executive Plant Intelligence, Loss Waterfalls & Financial Downtime Costs
+        {% trans "Executive Plant Intelligence, ISO 22400 OEE Benchmark Gauges & Financial Loss Waterfalls" %}
       </p>
     </div>
 
-    <div class="fs-page-actions">
-      <span class="fs-batch-badge">
-        <span>Batch 5 &bull; Executive Analytics Delivery</span>
-      </span>
+    <!-- Line Switcher Filter -->
+    <div class="fs-page-actions" style="display: flex; gap: 10px; align-items: center;">
+      <form method="GET" action="{% url 'manager_home' %}" style="display: flex; gap: 8px; align-items: center; margin: 0;">
+        <label for="lineSelect" style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary);">{% trans "Line" %}:</label>
+        <select id="lineSelect" name="line" onchange="this.form.submit()" style="padding: 7px 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--fs-border); border-radius: 6px; background: #fff; color: var(--fs-text-primary);">
+          {% for l in lines %}
+            <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>
+              {{ l.code }} - {% if is_rtl and l.name_ar %}{{ l.name_ar }}{% else %}{{ l.name }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{% url 'manager_losses' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        {% trans "Loss Waterfall" %}
+      </a>
+      <a href="{% url 'alerts_home' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        {% trans "View Alerts" %}
+      </a>
     </div>
   </div>
 
-  <!-- Executive KPI Summary Cards -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
-    <div class="fs-table-card" style="padding: 20px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
-        Line OEE (Overall)
-      </div>
-      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #2563EB; margin: 6px 0;">
-        86.4%
-      </div>
-      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
-        &uarr; +1.4% vs World-Class Target (85.0%)
+  {% if dashboard.status == 'OK' %}
+    <!-- 1. Actionable 'So What?' Executive Banner -->
+    <div class="fs-table-card" style="border-left: 6px solid {{ dashboard.so_what_banner.health_color }}; padding: 20px 24px; margin-bottom: 24px; background: #FFFFFF;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 300px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+            <span style="display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 700; border-radius: 4px; background: {{ dashboard.so_what_banner.health_color }}22; color: {{ dashboard.so_what_banner.health_color }}; text-transform: uppercase;">
+              {% if is_rtl %}{{ dashboard.so_what_banner.health_label_ar }}{% else %}{{ dashboard.so_what_banner.health_label }}{% endif %}
+            </span>
+            <span style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary);">
+              {% trans "Executive Action Summary" %}
+            </span>
+          </div>
+          <p style="font-size: 15px; font-weight: 600; color: var(--fs-text-primary); margin: 0 0 6px 0; line-height: 1.5;">
+            {% if is_rtl %}{{ dashboard.so_what_banner.message_ar }}{% else %}{{ dashboard.so_what_banner.message }}{% endif %}
+          </p>
+          <div style="display: flex; gap: 20px; font-size: 13px; color: var(--fs-text-secondary); margin-top: 8px; flex-wrap: wrap;">
+            <span>{% trans "Constraint Asset" %}: <strong style="color: var(--fs-text-primary);">{{ dashboard.so_what_banner.bottleneck.name }} ({{ dashboard.so_what_banner.bottleneck.code }})</strong></span>
+            <span>{% trans "Bottleneck Speed" %}: <strong class="font-mono" style="color: var(--fs-text-primary);">{{ dashboard.so_what_banner.bn_cpm }} / {{ dashboard.so_what_banner.bn_ideal }} CPM</strong></span>
+            <span>{% trans "Pace Efficiency" %}: <strong class="font-mono" style="color: var(--fs-text-primary);">{{ dashboard.so_what_banner.bn_efficiency }}%</strong></span>
+          </div>
+        </div>
+
+        <!-- Shift Opportunity Loss Callout -->
+        <div style="text-align: right; min-width: 180px; padding: 12px 18px; background: #F8FAFC; border: 1px solid var(--fs-border); border-radius: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase; margin-bottom: 4px;">
+            {% trans "Shift Loss Cost" %}
+          </div>
+          <div class="fs-counter font-mono" style="font-size: 28px; font-weight: 800; color: #DC2626;">
+            ${{ dashboard.so_what_banner.total_loss_cost|floatformat:2 }}
+          </div>
+          <div style="font-size: 12px; color: var(--fs-text-secondary); margin-top: 4px;">
+            {{ dashboard.so_what_banner.downtime_minutes|floatformat:0 }}m {% trans "stops" %} &bull; {{ dashboard.so_what_banner.scrap_pieces }} {% trans "scrap units" %}
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 20px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
-        Availability (A)
+    <!-- 2. Line OEE Benchmark Gauges (vs World-Class 85.0% Target) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      
+      <!-- Overall OEE -->
+      <div class="fs-table-card" style="padding: 20px; border-top: 4px solid {{ dashboard.benchmarks.oee.color }};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+            {% trans "Overall Line OEE" %}
+          </span>
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #F1F5F9; color: var(--fs-text-secondary); font-weight: 600;">
+            Target: 85.0%
+          </span>
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: {{ dashboard.benchmarks.oee.color }}; margin: 4px 0;">
+          {{ dashboard.benchmarks.oee.val|floatformat:1 }}%
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: {% if dashboard.benchmarks.oee.variance >= 0 %}#16A34A{% else %}#DC2626{% endif %};">
+          {% if dashboard.benchmarks.oee.variance >= 0 %}+{% endif %}{{ dashboard.benchmarks.oee.variance|floatformat:1 }}% {% trans "vs World-Class" %}
+        </div>
       </div>
-      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-        92.8%
+
+      <!-- Availability (A) -->
+      <div class="fs-table-card" style="padding: 20px; border-top: 4px solid {{ dashboard.benchmarks.availability.color }};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+            {% trans "Availability (A)" %}
+          </span>
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #F1F5F9; color: var(--fs-text-secondary); font-weight: 600;">
+            Target: 90.0%
+          </span>
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+          {{ dashboard.benchmarks.availability.val|floatformat:1 }}%
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: {% if dashboard.benchmarks.availability.variance >= 0 %}#16A34A{% else %}#DC2626{% endif %};">
+          {% if dashboard.benchmarks.availability.variance >= 0 %}+{% endif %}{{ dashboard.benchmarks.availability.variance|floatformat:1 }}% {% trans "variance" %}
+        </div>
       </div>
-      <div style="font-size: 12px; color: var(--fs-text-secondary);">
-        Downtime: 32 mins / 450 operating mins
+
+      <!-- Performance (P) -->
+      <div class="fs-table-card" style="padding: 20px; border-top: 4px solid {{ dashboard.benchmarks.performance.color }};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+            {% trans "Performance (P)" %}
+          </span>
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #F1F5F9; color: var(--fs-text-secondary); font-weight: 600;">
+            Target: 95.0%
+          </span>
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+          {{ dashboard.benchmarks.performance.val|floatformat:1 }}%
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: {% if dashboard.benchmarks.performance.variance >= 0 %}#16A34A{% else %}#DC2626{% endif %};">
+          {% if dashboard.benchmarks.performance.variance >= 0 %}+{% endif %}{{ dashboard.benchmarks.performance.variance|floatformat:1 }}% {% trans "variance" %}
+        </div>
+      </div>
+
+      <!-- Quality (Q) -->
+      <div class="fs-table-card" style="padding: 20px; border-top: 4px solid {{ dashboard.benchmarks.quality.color }};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+            {% trans "Quality (Q)" %}
+          </span>
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #F1F5F9; color: var(--fs-text-secondary); font-weight: 600;">
+            Target: 99.0%
+          </span>
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 34px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+          {{ dashboard.benchmarks.quality.val|floatformat:1 }}%
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: {% if dashboard.benchmarks.quality.variance >= 0 %}#16A34A{% else %}#DC2626{% endif %};">
+          {% if dashboard.benchmarks.quality.variance >= 0 %}+{% endif %}{{ dashboard.benchmarks.quality.variance|floatformat:1 }}% {% trans "variance" %}
+        </div>
       </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 20px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
-        Performance (P)
+    <!-- 3. Shift Progress & Production Pacing Strip -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 4px 0;">
+            {% trans "Shift Production Pacing & Hourly Run Rate" %}
+          </h3>
+          <span style="font-size: 13px; color: var(--fs-text-secondary);">
+            {% trans "Target" %}: {{ dashboard.pacing.target_units }} {% trans "units" %} &bull; {% trans "Actual" %}: <strong class="font-mono">{{ dashboard.pacing.actual_units }}</strong> {% trans "units" %}
+          </span>
+        </div>
+        <span style="padding: 4px 10px; font-size: 12px; font-weight: 700; border-radius: 4px; background: {{ dashboard.pacing.color }}22; color: {{ dashboard.pacing.color }};">
+          {{ dashboard.pacing.label }} ({{ dashboard.pacing.progress_pct }}%)
+        </span>
       </div>
-      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-        93.4%
+
+      <!-- Main Progress Bar -->
+      <div style="width: 100%; height: 10px; background: #E2E8F0; border-radius: 5px; overflow: hidden; margin-bottom: 18px;">
+        <div style="width: {{ dashboard.pacing.progress_pct }}%; height: 100%; background: {{ dashboard.pacing.color }}; border-radius: 5px;"></div>
       </div>
-      <div style="font-size: 12px; color: var(--fs-text-secondary);">
-        Rated CPM: 120 &bull; Actual CPM: 112
+
+      <!-- 8-Hour Production Run Bars -->
+      <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; text-align: center;">
+        {% for slot in dashboard.pacing.hourly_chart %}
+          <div style="background: #F8FAFC; border: 1px solid var(--fs-border); border-radius: 6px; padding: 10px 4px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--fs-text-secondary); margin-bottom: 4px;">
+              {{ slot.hour }}
+            </div>
+            <!-- Bar height representation -->
+            <div style="height: 48px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 6px;">
+              <div style="width: 18px; height: {{ slot.pct }}%; min-height: 4px; background: {{ slot.color }}; border-radius: 3px;"></div>
+            </div>
+            <div class="font-mono" style="font-size: 12px; font-weight: 700; color: var(--fs-text-primary);">
+              {{ slot.units }}
+            </div>
+            <div style="font-size: 10px; color: var(--fs-text-secondary);">
+              {{ slot.pct }}%
+            </div>
+          </div>
+        {% endfor %}
       </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 20px;">
-      <div style="font-size: 13px; font-weight: 600; color: var(--fs-text-secondary); text-transform: uppercase;">
-        Quality (Q)
+    <!-- 4. Live Conveyor Machine Flow Strip -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0;">
+          {% trans "Live Conveyor Machine Sequence (Physical Line Flow)" %}
+        </h3>
+        <span style="font-size: 12px; color: var(--fs-text-secondary);">
+          {% trans "Upstream to Downstream Flow" %}
+        </span>
       </div>
-      <div class="fs-counter" style="font-size: 32px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-        99.68%
-      </div>
-      <div style="font-size: 12px; color: #16A34A; font-weight: 600;">
-        Scrap: 48 pcs (Defect rate: 0.32%)
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+        {% for m in dashboard.conveyor_strip %}
+          <div style="border: 2px solid {{ m.state_color }}; background: #FFFFFF; border-radius: 8px; padding: 14px; position: relative;">
+            {% if m.is_bottleneck %}
+              <span style="position: absolute; top: -10px; right: 10px; background: #DC2626; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
+                {% trans "Constraint" %}
+              </span>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div>
+                <span class="font-mono" style="font-size: 11px; font-weight: 700; color: var(--fs-text-secondary);">
+                  {{ m.code }}
+                </span>
+                <div style="font-size: 14px; font-weight: 700; color: var(--fs-text-primary); margin-top: 2px;">
+                  {% if is_rtl and m.name_ar %}{{ m.name_ar }}{% else %}{{ m.name }}{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- State Badge -->
+            <div style="margin: 8px 0;">
+              <span style="display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; background: {{ m.state_bg }}; color: {{ m.state_color }};">
+                {{ m.state }}
+              </span>
+            </div>
+
+            <!-- Speed CPM -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; border-top: 1px solid var(--fs-border); padding-top: 8px; margin-top: 8px;">
+              <span style="color: var(--fs-text-secondary);">{% trans "Speed" %}:</span>
+              <span class="font-mono" style="font-weight: 700; color: var(--fs-text-primary);">
+                {{ m.current_cpm }} / {{ m.ideal_cpm }} CPM
+              </span>
+            </div>
+
+            {% if m.active_alerts > 0 %}
+              <div style="margin-top: 8px; font-size: 11px; font-weight: 700; color: #DC2626;">
+                {{ m.active_alerts }} {% trans "active alert(s)" %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
       </div>
     </div>
-  </div>
 
-  <div class="fs-batch-card">
-    <div style="margin-bottom: 12px;">
-      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
-        Executive Management Overview & Dashboard Roadmap (Batch 5 Scope)
-      </h2>
+    <!-- 5. TPM Six Big Losses Waterfall Visualizer -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 4px 0;">
+            {% trans "TPM Six Big Losses Time & Cost Waterfall" %}
+          </h3>
+          <span style="font-size: 13px; color: var(--fs-text-secondary);">
+            {% trans "ISO 22400 Operational Minute Allocations and Financial Value Impact" %}
+          </span>
+        </div>
+        <a href="{% url 'manager_losses' %}?line={{ selected_line.id }}" class="fs-btn fs-btn-outline" style="padding: 6px 12px; font-size: 12px;">
+          {% trans "Deep-Dive Waterfall" %}
+        </a>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="fs-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>{% trans "Loss Category" %}</th>
+              <th>{% trans "TPM Bucket" %}</th>
+              <th style="text-align: right;">{% trans "Lost Time" %}</th>
+              <th style="text-align: right;">{% trans "Time Share" %}</th>
+              <th style="text-align: right;">{% trans "Financial Cost" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in dashboard.waterfall %}
+              <tr>
+                <td style="font-weight: 600; color: var(--fs-text-primary);">
+                  {{ item.name }}
+                </td>
+                <td>
+                  <span class="fs-pill font-mono" style="font-size: 11px;">
+                    {{ item.tpm_bucket }}
+                  </span>
+                </td>
+                <td class="font-mono" style="text-align: right; font-weight: 700;">
+                  {{ item.minutes|floatformat:1 }}m
+                </td>
+                <td class="font-mono" style="text-align: right;">
+                  {{ item.percent_of_ppt|floatformat:1 }}%
+                </td>
+                <td class="font-mono" style="text-align: right; font-weight: 700; color: {% if item.financial_cost > 0 %}#DC2626{% else %}var(--fs-text-secondary){% endif %};">
+                  ${{ item.financial_cost|floatformat:2 }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
-      The TPM Six Big Losses financial waterfall, line benchmark gauges, shift pacing projections, and dynamic bottleneck detection will be delivered in <strong>Batch 5</strong>:
-    </p>
-
-    <ul class="fs-roadmap-list">
-      {% for feature in scheduled_features %}
-        <li class="fs-roadmap-item">
-          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 11 12 14 22 4"></polyline>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-          </svg>
-          <span>{{ feature }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+  {% else %}
+    <div class="fs-table-card" style="padding: 40px; text-align: center;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--fs-text-primary); margin-bottom: 8px;">
+        {% trans "No Operational Data Available" %}
+      </h3>
+      <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 16px;">
+        {{ dashboard.error|default:"No active lines or telemetry readings found. Run simulation controller or select a line." }}
+      </p>
+      <a href="{% url 'controller_home' %}" class="fs-btn fs-btn-primary">
+        {% trans "Open Simulation Controller" %}
+      </a>
+    </div>
+  {% endif %}
 
 </div>
 {% endblock %}

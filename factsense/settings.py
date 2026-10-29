@@ -31,6 +31,13 @@ INSTALLED_APPS = [
     'apps.accounts.apps.AccountsConfig',
     'apps.masterdata.apps.MasterdataConfig',
     'apps.portal.apps.PortalConfig',
+    'apps.telemetry.apps.TelemetryConfig',
+    'apps.operations.apps.OperationsConfig',
+    'apps.quality.apps.QualityConfig',
+    'apps.alerts.apps.AlertsConfig',
+    'apps.planning.apps.PlanningConfig',
+    'apps.copilot.apps.CopilotConfig',
+    'apps.reports.apps.ReportsConfig',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -112,3 +119,10 @@ LOGIN_REDIRECT_URL = 'role_landing'
 LOGOUT_REDIRECT_URL = 'login'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Fast password hashing for accelerated test suites
+import sys
+if 'test' in sys.argv:
+    PASSWORD_HASHERS = [
+        'django.contrib.auth.hashers.MD5PasswordHasher',
+    ]

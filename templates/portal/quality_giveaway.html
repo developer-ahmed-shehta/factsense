@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-giveaway-page">
+
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% trans "High-Precision Liquid Overfill Financial Analysis, Raw Material Losses & Annual ROI Modeling" %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions">
+      <a href="{% url 'quality_home' %}" class="fs-btn fs-btn-outline" style="padding: 7px 14px; font-size: 13px;">
+        &larr; {% trans "Back to SPC Hub" %}
+      </a>
+    </div>
+  </div>
+
+  {% if spc.status == 'OK' %}
+    <!-- Giveaway Metrics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Measured Mean vs Nominal" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+          {{ spc.stats.mu_overall }}g
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          Nominal: {{ spc.config.nominal }}g &bull; Dev: <strong class="font-mono">+{{ spc.giveaway.avg_giveaway_grams }}g</strong>
+        </div>
+      </div>
+
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Batch Overfill Product Weight" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #EA580C; margin: 4px 0;">
+          {{ spc.giveaway.sample_giveaway_kg }} kg
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {% trans "Across current sample batch" %}
+        </div>
+      </div>
+
+      <div class="fs-table-card" style="padding: 20px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+          {% trans "Projected Annual Financial Loss" %}
+        </div>
+        <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #DC2626; margin: 4px 0;">
+          ${{ spc.giveaway.annual_giveaway_cost|floatformat:2 }}
+        </div>
+        <div style="font-size: 12px; color: var(--fs-text-secondary);">
+          {{ spc.giveaway.annual_giveaway_kg|floatformat:0 }} kg {% trans "product giveaway per year" %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Formula Breakdown Card -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+      <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0 0 12px 0;">
+        {% trans "Mathematical Formulation & Valuation Basis" %}
+      </h3>
+
+      <div style="background: #F8FAFC; border: 1px solid var(--fs-border); border-radius: 6px; padding: 16px; margin-bottom: 16px; font-family: monospace; font-size: 13px; color: #0F172A; line-height: 1.6;">
+        Annual Giveaway (kg) = (Annual Units [{{ spc.config.annual_units }}] &times; max(0, Mean [{{ spc.stats.mu_overall }}g] - Nominal [{{ spc.config.nominal }}g])) / 1000<br>
+        Annual Financial Loss ($) = Annual Giveaway (kg) &times; Material Cost ($/kg) [${{ spc.config.cost_per_kg }}]<br>
+        Current Result = ({{ spc.config.annual_units }} &times; {{ spc.giveaway.avg_giveaway_grams }}g) / 1000 &times; ${{ spc.config.cost_per_kg }} = ${{ spc.giveaway.annual_giveaway_cost|floatformat:2 }}
+      </div>
+
+      <p style="font-size: 13px; color: var(--fs-text-secondary); margin: 0;">
+        {% trans "Raw material cost assumption" %}: <strong class="font-mono">${{ spc.config.cost_per_kg }} / kg</strong>. {% trans "Annual baseline volume" %}: <strong class="font-mono">{{ spc.config.annual_units }} units</strong>.
+      </p>
+    </div>
+  {% else %}
+    <div class="fs-table-card" style="padding: 40px; text-align: center;">
+      <p style="font-size: 14px; color: var(--fs-text-secondary);">{% trans "Insufficient data to calculate giveaway." %}</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+

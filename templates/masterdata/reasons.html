@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Reason Taxonomies" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}تصنيف أسباب التوقفات والعيوب الصناعية{% else %}Stoppage & Defect Reason Taxonomies{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          تصنيف هرمي لأعطال الماكينات مرتبط بخسائر TPM الست الكبرى والمسؤولية الإدارية، وتصنيف عيوب الجودة وخيارات التصرف.
+        {% else %}
+          Hierarchical downtime classification mapped to TPM Six Big Losses and responsible departments, alongside defect dispositions.
+        {% endif %}
+      </p>
+    </div>
+
+    {% if can_edit %}
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="openDefectModal()">
+          {% if is_rtl %}إضافة سبب عيب{% else %}Add Defect Reason{% endif %}
+        </button>
+        <button type="button" class="fs-btn fs-btn-primary" onclick="openReasonModal()">
+          {% if is_rtl %}إضافة سبب توقف{% else %}Add Stoppage Reason{% endif %}
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Stoppage Reasons Table Card -->
+  <div class="fs-table-card" style="margin-bottom: 28px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+        {% if is_rtl %}دليل أسباب التوقفات ومطابقة خسائر TPM{% else %}Downtime Stoppage Reasons & TPM Loss Mapping{% endif %}
+      </h2>
+      <span style="font-size: 12px; color: #64748B;">Total Reasons: <strong>{{ stoppage_reasons.count }}</strong></span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th style="width: 120px;">CODE</th>
+            <th>REASON NAME</th>
+            <th>CATEGORY</th>
+            <th>DEPARTMENT</th>
+            <th>TPM LOSS CATEGORY</th>
+            <th style="text-align: center;">PLANNED</th>
+            <th style="text-align: center;">FORCE LOGOUT</th>
+            <th style="text-align: right;">STD RESOLUTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in stoppage_reasons %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700; color: #0F172A;">{{ r.code }}</td>
+              <td>
+                <div style="font-weight: 600; color: #1E293B;">
+                  {% if is_rtl and r.name_ar %}{{ r.name_ar }}{% else %}{{ r.name }}{% endif %}
+                </div>
+              </td>
+              <td>
+                <span class="fs-process-badge">{{ r.category.name }}</span>
+              </td>
+              <td>
+                <span class="fs-role-tag">{{ r.category.get_department_display }}</span>
+              </td>
+              <td>
+                <span class="fs-role-tag" style="{% if 'BREAKDOWN' in r.tpm_loss_type %}background: #FEE2E2; color: #991B1B; font-weight: 700;{% elif 'CHANGEOVER' in r.tpm_loss_type %}background: #FEF3C7; color: #92400E; font-weight: 700;{% elif 'DEFECT' in r.tpm_loss_type %}background: #FFEDD5; color: #C2410C; font-weight: 700;{% endif %}">
+                  {{ r.get_tpm_loss_type_display }}
+                </span>
+              </td>
+              <td style="text-align: center;">
+                {% if r.is_planned %}
+                  <span class="font-mono" style="font-weight: 700; color: #16A34A;">YES</span>
+                {% else %}
+                  <span class="font-mono" style="color: #94A3B8;">NO</span>
+                {% endif %}
+              </td>
+              <td style="text-align: center;">
+                {% if r.force_logout %}
+                  <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700; font-size: 10px;">
+                    LOCK ACTIVE
+                  </span>
+                {% else %}
+                  <span style="color: #94A3B8;">-</span>
+                {% endif %}
+              </td>
+              <td class="font-mono" style="text-align: right; font-weight: 600;">
+                {{ r.standard_resolution_min }} min
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 36px; color: #64748B;">
+                No stoppage reasons registered. Click "Add Stoppage Reason" to seed taxonomy.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Defect Scrap Reasons Table Card -->
+  <div class="fs-table-card">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+        {% if is_rtl %}تصنيف عيوب الجودة والهالك{% else %}Quality Defect & Scrap Taxonomies{% endif %}
+      </h2>
+      <span style="font-size: 12px; color: #64748B;">Total Defect Types: <strong>{{ defect_reasons.count }}</strong></span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th style="width: 130px;">CODE</th>
+            <th>DEFECT NAME</th>
+            <th>CATEGORY</th>
+            <th>DEFAULT DISPOSITION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in defect_reasons %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700; color: #0F172A;">{{ d.code }}</td>
+              <td>
+                <div style="font-weight: 600; color: #1E293B;">
+                  {% if is_rtl and d.name_ar %}{{ d.name_ar }}{% else %}{{ d.name }}{% endif %}
+                </div>
+              </td>
+              <td><span class="fs-process-badge">{{ d.category }}</span></td>
+              <td>
+                <span class="fs-role-tag" style="{% if d.default_disposition == 'SCRAP' %}background: #FEE2E2; color: #991B1B; font-weight: 700;{% elif d.default_disposition == 'QUARANTINE' %}background: #FEF3C7; color: #92400E; font-weight: 700;{% else %}background: #DBEAFE; color: #1D4ED8; font-weight: 700;{% endif %}">
+                  {{ d.get_default_disposition_display }}
+                </span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 36px; color: #64748B;">
+                No defect reasons configured. Click "Add Defect Reason" above.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Add Stoppage Reason -->
+<div id="reasonModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 560px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}إضافة سبب توقف جديد{% else %}Add Stoppage Reason{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeReasonModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'reason_add' %}">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div class="fs-form-group">
+          <label class="fs-label" for="reason_cat_id">Category & Department *</label>
+          <select id="reason_cat_id" name="category_id" class="fs-select" required>
+            {% for c in categories %}
+              <option value="{{ c.id }}">{{ c.name }} ({{ c.get_department_display }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="reason_code">Reason Code *</label>
+            <input type="text" id="reason_code" name="code" class="fs-input font-mono" placeholder="e.g. MECH_JAM" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="reason_tpm">TPM Loss Category *</label>
+            <select id="reason_tpm" name="tpm_loss_type" class="fs-select">
+              <option value="AVAILABILITY_BREAKDOWN">Breakdown Loss (Unplanned)</option>
+              <option value="AVAILABILITY_CHANGEOVER">Setup & Changeover Loss</option>
+              <option value="PERFORMANCE_MINOR_STOP">Minor Stoppages (< 5 min)</option>
+              <option value="PERFORMANCE_SPEED_LOSS">Reduced Speed Loss</option>
+              <option value="QUALITY_DEFECTS">Production Defect & Scrap</option>
+              <option value="QUALITY_STARTUP_SCRAP">Startup Reject Loss</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="reason_name">Name (English) *</label>
+            <input type="text" id="reason_name" name="name" class="fs-input" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="reason_name_ar">Name (Arabic)</label>
+            <input type="text" id="reason_name_ar" name="name_ar" class="fs-input">
+          </div>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="reason_res_min">Standard Resolution Benchmark (Minutes)</label>
+          <input type="number" id="reason_res_min" name="standard_resolution_min" class="fs-input font-mono" value="15" required>
+        </div>
+
+        <div style="display: flex; gap: 24px; margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" name="is_planned" style="accent-color: #2563EB;">
+            Planned Stoppage (Setup / CIP)
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: #991B1B;">
+            <input type="checkbox" name="force_logout" style="accent-color: #EF4444;">
+            Force Logout Operator Kiosk during Lock
+          </label>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeReasonModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Add Defect Reason -->
+<div id="defectModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 500px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}إضافة تصنيف عيب جديد{% else %}Add Defect Reason{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeDefectModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'defect_add' %}">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="defect_code">Defect Code *</label>
+            <input type="text" id="defect_code" name="code" class="fs-input font-mono" placeholder="e.g. DEF_LEAK" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="defect_cat">Category *</label>
+            <input type="text" id="defect_cat" name="category" class="fs-input" value="Packaging" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="defect_name">Name (English) *</label>
+            <input type="text" id="defect_name" name="name" class="fs-input" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="defect_name_ar">Name (Arabic)</label>
+            <input type="text" id="defect_name_ar" name="name_ar" class="fs-input">
+          </div>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="defect_disp">Default Disposition *</label>
+          <select id="defect_disp" name="default_disposition" class="fs-select">
+            <option value="SCRAP" selected>Scrap / Discard</option>
+            <option value="REWORK">Rework / Reprocess</option>
+            <option value="QUARANTINE">Quality Quarantine</option>
+          </select>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeDefectModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openReasonModal() {
+  document.getElementById('reasonModal').style.display = 'flex';
+}
+function closeReasonModal() {
+  document.getElementById('reasonModal').style.display = 'none';
+}
+function openDefectModal() {
+  document.getElementById('defectModal').style.display = 'flex';
+}
+function closeDefectModal() {
+  document.getElementById('defectModal').style.display = 'none';
+}
+</script>
+{% endblock %}
+

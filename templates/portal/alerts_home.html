@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-alerts-page">
+
+  <!-- Header -->
+  <div class="fs-page-header">
+    <div class="fs-page-title-wrap">
+      <h1 class="fs-page-title">
+        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% trans "Real-Time Industrial Incident Alerts, Alarm Storm Deduplication & Auto-Resolving Watchdog" %}
+      </p>
+    </div>
+
+    <div class="fs-page-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <form method="POST" action="{% url 'alert_evaluate_now_action' %}" style="margin: 0;">
+        {% csrf_token %}
+        <button type="submit" class="fs-btn fs-btn-outline" style="padding: 7px 12px; font-size: 13px;">
+          {% trans "Evaluate Telemetry Now" %}
+        </button>
+      </form>
+      <button type="button" class="fs-btn fs-btn-primary" onclick="openModal('newRuleModal')" style="padding: 7px 14px; font-size: 13px;">
+        + {% trans "New Alert Rule" %}
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Summary Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    
+    <div class="fs-table-card" style="padding: 18px; border-top: 4px solid #DC2626;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Active Alerts" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #DC2626; margin: 4px 0;">
+        {{ summary.total_active }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {{ summary.unacknowledged }} {% trans "unacknowledged" %}
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 18px; border-top: 4px solid #EF4444;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Critical Incidents" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #EF4444; margin: 4px 0;">
+        {{ summary.critical_count }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {% trans "Requires immediate plant response" %}
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 18px; border-top: 4px solid #F59E0B;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Warnings" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #F59E0B; margin: 4px 0;">
+        {{ summary.warning_count }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {% trans "Speed loss, minor temp/vib drift" %}
+      </div>
+    </div>
+
+    <div class="fs-table-card" style="padding: 18px; border-top: 4px solid #16A34A;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--fs-text-secondary); text-transform: uppercase;">
+        {% trans "Configured Rules" %}
+      </div>
+      <div class="fs-counter font-mono" style="font-size: 32px; font-weight: 800; color: #0F172A; margin: 4px 0;">
+        {{ rules.count }}
+      </div>
+      <div style="font-size: 12px; color: var(--fs-text-secondary);">
+        {% trans "Active automated monitors" %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Tabs -->
+  <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--fs-border); padding-bottom: 8px;">
+    <a href="{% url 'alerts_home' %}?status=ACTIVE" class="fs-btn {% if selected_status == 'ACTIVE' %}fs-btn-primary{% else %}fs-btn-outline{% endif %}" style="padding: 6px 14px; font-size: 13px;">
+      {% trans "Active & Acknowledged" %} ({{ summary.total_active }})
+    </a>
+    <a href="{% url 'alerts_home' %}?status=RESOLVED" class="fs-btn {% if selected_status == 'RESOLVED' %}fs-btn-primary{% else %}fs-btn-outline{% endif %}" style="padding: 6px 14px; font-size: 13px;">
+      {% trans "Resolved History" %}
+    </a>
+    <a href="{% url 'alerts_home' %}?status=RULES" class="fs-btn {% if selected_status == 'RULES' %}fs-btn-primary{% else %}fs-btn-outline{% endif %}" style="padding: 6px 14px; font-size: 13px;">
+      {% trans "Alert Rules Configuration" %} ({{ rules.count }})
+    </a>
+  </div>
+
+  {% if selected_status == 'RULES' %}
+    <!-- Rules Configuration Table -->
+    <div class="fs-table-card" style="padding: 20px 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--fs-text-primary); margin: 0;">
+          {% trans "Automated Rule Catalog" %}
+        </h3>
+        <button type="button" class="fs-btn fs-btn-primary" onclick="openModal('newRuleModal')" style="padding: 6px 12px; font-size: 12px;">
+          + {% trans "Add Rule" %}
+        </button>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="fs-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>{% trans "Rule Name" %}</th>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Scope" %}</th>
+              <th>{% trans "Severity" %}</th>
+              <th style="text-align: right;">{% trans "Threshold" %}</th>
+              <th style="text-align: right;">{% trans "Cooldown" %}</th>
+              <th style="text-align: center;">{% trans "Auto-Resolve" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rules %}
+              <tr>
+                <td style="font-weight: 700; color: var(--fs-text-primary);">
+                  {% if is_rtl and r.name_ar %}{{ r.name_ar }}{% else %}{{ r.name }}{% endif %}
+                </td>
+                <td><span class="fs-pill font-mono" style="font-size: 11px;">{{ r.get_rule_type_display }}</span></td>
+                <td>
+                  <span class="fs-pill" style="font-size: 11px;">
+                    {{ r.get_scope_display }}
+                    {% if r.machine %} - {{ r.machine.code }}{% elif r.line %} - {{ r.line.code }}{% endif %}
+                  </span>
+                </td>
+                <td>
+                  <span style="font-weight: 700; font-size: 11px; color: {% if r.severity == 'CRITICAL' %}#DC2626{% elif r.severity == 'WARNING' %}#EA580C{% else %}#2563EB{% endif %};">
+                    {{ r.severity }}
+                  </span>
+                </td>
+                <td class="font-mono" style="text-align: right; font-weight: 700;">
+                  {{ r.threshold_value }}
+                </td>
+                <td class="font-mono" style="text-align: right;">
+                  {{ r.cooldown_minutes }}m
+                </td>
+                <td style="text-align: center;">
+                  {% if r.auto_resolve %}
+                    <span style="color: #16A34A; font-weight: 700; font-size: 12px;">YES</span>
+                  {% else %}
+                    <span style="color: var(--fs-text-secondary); font-size: 12px;">NO</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--fs-text-secondary); padding: 24px;">
+                  {% trans "No alert rules defined yet." %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  {% else %}
+    <!-- Incidents Table (Active or Resolved) -->
+    <div class="fs-table-card" style="padding: 20px 24px;">
+      <div style="overflow-x: auto;">
+        <table class="fs-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>{% trans "Severity" %}</th>
+              <th>{% trans "Asset / Line" %}</th>
+              <th>{% trans "Alert Incident" %}</th>
+              <th style="text-align: center;">{% trans "Alarm Storm Count" %}</th>
+              <th style="text-align: right;">{% trans "Duration" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th style="text-align: center;">{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inc in incidents %}
+              <tr style="{% if inc.severity == 'CRITICAL' and inc.status == 'ACTIVE' %}background: #FEF2F2;{% endif %}">
+                <td>
+                  <span style="display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 800; border-radius: 4px; text-transform: uppercase; background: {% if inc.severity == 'CRITICAL' %}#FEE2E2{% elif inc.severity == 'WARNING' %}#FEF3C7{% else %}#DBEAFE{% endif %}; color: {% if inc.severity == 'CRITICAL' %}#DC2626{% elif inc.severity == 'WARNING' %}#B45309{% else %}#1D4ED8{% endif %};">
+                    {{ inc.severity }}
+                  </span>
+                </td>
+                <td>
+                  <strong>{{ inc.machine.code }}</strong>
+                  <div style="font-size: 11px; color: var(--fs-text-secondary);">{{ inc.line.code }}</div>
+                </td>
+                <td style="max-width: 320px;">
+                  <div style="font-weight: 700; color: var(--fs-text-primary);">
+                    {% if is_rtl and inc.title_ar %}{{ inc.title_ar }}{% else %}{{ inc.title }}{% endif %}
+                  </div>
+                  <div style="font-size: 12px; color: var(--fs-text-secondary); margin-top: 2px;">
+                    {% if is_rtl and inc.message_ar %}{{ inc.message_ar }}{% else %}{{ inc.message }}{% endif %}
+                  </div>
+                </td>
+                <td style="text-align: center;">
+                  {% if inc.occurrences_count > 1 %}
+                    <span class="font-mono" style="padding: 2px 7px; font-size: 11px; font-weight: 800; border-radius: 12px; background: #E2E8F0; color: #0F172A;" title="Deduplicated repetitions suppressed during cooldown">
+                      &times;{{ inc.occurrences_count }}
+                    </span>
+                  {% else %}
+                    <span class="font-mono" style="color: var(--fs-text-secondary); font-size: 11px;">1</span>
+                  {% endif %}
+                </td>
+                <td class="font-mono" style="text-align: right; font-size: 12px;">
+                  {{ inc.duration_open_minutes }}m
+                </td>
+                <td>
+                  <span style="display: inline-block; padding: 2px 7px; font-size: 11px; font-weight: 700; border-radius: 4px; background: {% if inc.status == 'ACTIVE' %}#DC2626{% elif inc.status == 'ACKNOWLEDGED' %}#F59E0B{% else %}#16A34A{% endif %}22; color: {% if inc.status == 'ACTIVE' %}#DC2626{% elif inc.status == 'ACKNOWLEDGED' %}#F59E0B{% else %}#16A34A{% endif %};">
+                    {{ inc.get_status_display }}
+                  </span>
+                </td>
+                <td style="text-align: center;">
+                  <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                    {% if inc.status == 'ACTIVE' %}
+                      <form method="POST" action="{% url 'alert_acknowledge_action' inc.id %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="fs-btn fs-btn-outline" style="padding: 3px 8px; font-size: 11px;">
+                          {% trans "Acknowledge" %}
+                        </button>
+                      </form>
+                    {% endif %}
+
+                    {% if inc.status != 'RESOLVED' %}
+                      {% if not inc.spawned_ticket %}
+                        <form method="POST" action="{% url 'alert_escalate_action' inc.id %}" style="margin: 0;">
+                          {% csrf_token %}
+                          <button type="submit" class="fs-btn fs-btn-primary" style="padding: 3px 8px; font-size: 11px;">
+                            {% trans "Escalate to Ticket" %}
+                          </button>
+                        </form>
+                      {% else %}
+                        <a href="{% url 'maintenance_home' %}" class="fs-pill" style="font-size: 11px; text-decoration: none;">
+                          Ticket #{{ inc.spawned_ticket.id|stringformat:".8s" }}
+                        </a>
+                      {% endif %}
+
+                      <button type="button" class="fs-btn fs-btn-outline" style="padding: 3px 8px; font-size: 11px;" onclick="openResolveModal('{{ inc.id }}', '{{ inc.title|escapejs }}')">
+                        {% trans "Resolve" %}
+                      </button>
+                    {% else %}
+                      <span style="font-size: 11px; color: var(--fs-text-secondary);">
+                        {{ inc.resolution_note|default:"Resolved" }}
+                      </span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--fs-text-secondary); padding: 32px;">
+                  {% trans "No alert incidents match the selected filter." %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+<!-- Modal: New Alert Rule -->
+<div id="newRuleModal" class="fs-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: #fff; border-radius: 8px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 16px; font-weight: 700; margin: 0;">{% trans "Create New Industrial Alert Rule" %}</h3>
+      <button type="button" class="fs-modal-close" onclick="closeModal('newRuleModal')" style="border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+
+    <form method="POST" action="{% url 'alert_create_rule_action' %}">
+      {% csrf_token %}
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Rule Name" %}</label>
+        <input type="text" name="name" required placeholder="e.g. Capper Chute Stop > 10m" style="width: 100%; padding: 7px 10px; border: 1px solid var(--fs-border); border-radius: 6px;">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Rule Type" %}</label>
+          <select name="rule_type" style="width: 100%; padding: 7px 10px; border: 1px solid var(--fs-border); border-radius: 6px;">
+            <option value="DOWNTIME_DURATION">Continuous Downtime Duration</option>
+            <option value="LOW_SPEED">Low Operating Speed</option>
+            <option value="DEFECT_SPIKE">Defect Rate Spike</option>
+            <option value="WEIGHT_OUT_OF_SPEC">Weight Out of Spec</option>
+            <option value="TEMPERATURE_HIGH">High Temperature Overheat</option>
+            <option value="VIBRATION_HIGH">Excessive Vibration RMS</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Severity" %}</label>
+          <select name="severity" style="width: 100%; padding: 7px 10px; border: 1px solid var(--fs-border); border-radius: 6px;">
+            <option value="WARNING">WARNING</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="INFO">INFO</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Threshold Value" %}</label>
+          <input type="number" step="0.1" name="threshold_value" value="10.0" style="width: 100%; padding: 7px 10px; border: 1px solid var(--fs-border); border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Cooldown (minutes)" %}</label>
+          <input type="number" name="cooldown_minutes" value="10" style="width: 100%; padding: 7px 10px; border: 1px solid var(--fs-border); border-radius: 6px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" name="auto_resolve" checked>
+          <span>{% trans "Auto-resolve when telemetry parameters recover" %}</span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="fs-btn fs-btn-outline" onclick="closeModal('newRuleModal')">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save Rule" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Resolve Alert with Note -->
+<div id="resolveAlertModal" class="fs-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: #fff; border-radius: 8px; max-width: 440px; width: 90%; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h3 style="font-size: 16px; font-weight: 700; margin: 0;">{% trans "Resolve Alert Incident" %}</h3>
+      <button type="button" class="fs-modal-close" onclick="closeModal('resolveAlertModal')" style="border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+
+    <form id="resolveAlertForm" method="POST" action="">
+      {% csrf_token %}
+      <p id="resolveAlertTitle" style="font-size: 13px; font-weight: 600; color: var(--fs-text-primary); margin-bottom: 12px;"></p>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">{% trans "Resolution Summary / Action Taken" %}</label>
+        <textarea name="note" required rows="3" placeholder="e.g. Realigned optical sensor, speed normalized." style="width: 100%; padding: 8px; border: 1px solid var(--fs-border); border-radius: 6px; font-size: 13px;"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="fs-btn fs-btn-outline" onclick="closeModal('resolveAlertModal')">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Confirm Resolution" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+  function openResolveModal(alertId, alertTitle) {
+    const form = document.getElementById('resolveAlertForm');
+    form.action = '/alerts/' + alertId + '/resolve/';
+    document.getElementById('resolveAlertTitle').innerText = alertTitle;
+    openModal('resolveAlertModal');
+  }
+</script>
+{% endblock %}
+{% endblock %}
+

@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Title Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}تخطيط الإنتاج وسلاسل الإمداد{% else %}Planning & Supply Chain{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}جدول الورديات والماكينات{% else %}Shift Schedule{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                مصفوفة توزيع أوامر العمل على الماكينات والورديات الثلاث (الصباحية، المسائية، والليلية).
+                {% else %}
+                Visual shift calendar allocating work orders across Morning, Evening, and Night shifts.
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-3 rtl:space-x-reverse">
+            <button onclick="document.getElementById('assignShiftModal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}تخصيص أمر لوردية{% else %}Assign Order to Shift{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "planning/partials/nav_tabs.html" with active_tab="schedule" %}
+
+    <!-- Date & Line Navigation Bar -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- Line Selector -->
+        <div class="flex items-center space-x-3 rtl:space-x-reverse w-full md:w-auto">
+            <label class="text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Production Line:</label>
+            <form method="get" class="inline">
+                <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
+                <select name="line" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for l in lines %}
+                    <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <!-- Date Paging Navigator -->
+        <div class="flex items-center space-x-2 rtl:space-x-reverse">
+            <a href="?line={{ selected_line.id }}&date={{ prev_date|date:'Y-m-d' }}" 
+               class="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                &larr; Prev Day
+            </a>
+            <div class="px-4 py-1.5 bg-gray-50 border border-gray-300 rounded-md font-mono text-sm font-bold text-gray-900">
+                {{ target_date|date:'l, F d, Y' }}
+            </div>
+            <a href="?line={{ selected_line.id }}&date={{ next_date|date:'Y-m-d' }}" 
+               class="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Next Day &rarr;
+            </a>
+            <a href="?line={{ selected_line.id }}" 
+               class="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-semibold hover:bg-emerald-100">
+                Today
+            </a>
+        </div>
+    </div>
+
+    <!-- Visual 3-Shift Matrix Table Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Shift Allocation Matrix: {{ selected_line.name }} ({{ target_date|date:'Y-m-d' }})
+            </h2>
+            <span class="text-xs text-gray-500">
+                Scheduled across {{ shifts.count }} standard shift windows
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="w-1/4 px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-600 uppercase border-r border-gray-200">
+                            Machine Asset / Stage
+                        </th>
+                        {% for s in shifts %}
+                        <th class="w-1/4 px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-700 uppercase border-r border-gray-200">
+                            <div class="font-bold text-gray-900">{{ s.name }}</div>
+                            <div class="text-[11px] font-mono text-gray-500">{{ s.start_time|time:'H:i' }} - {{ s.end_time|time:'H:i' }} ({{ s.total_scheduled_minutes }}m)</div>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for row in matrix_data %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-4 border-r border-gray-200 align-top">
+                            <div class="font-bold text-gray-900 text-sm flex items-center space-x-1.5 rtl:space-x-reverse">
+                                <span>{{ row.machine.name }}</span>
+                                {% if row.machine.is_bottleneck %}
+                                <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                    Bottleneck
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500 font-mono mt-0.5">{{ row.machine.code }}</div>
+                            <div class="text-[11px] text-gray-400 mt-1">Rated: {{ row.machine.ideal_run_rate_cpm|floatformat:0 }} CPM</div>
+                        </td>
+
+                        {% for cell in row.shift_cells %}
+                        <td class="px-3 py-3 border-r border-gray-200 align-top bg-white">
+                            {% if cell.assignment %}
+                            <div class="border border-emerald-200 bg-emerald-50 rounded-md p-3 shadow-xs">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <a href="{% url 'work_order_detail' cell.assignment.work_order.id %}" 
+                                       class="font-mono text-xs font-bold text-emerald-800 hover:underline">
+                                        {{ cell.assignment.work_order.order_number }}
+                                    </a>
+                                    <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-200 text-emerald-900">
+                                        {{ cell.assignment.status }}
+                                    </span>
+                                </div>
+                                <div class="text-xs font-medium text-gray-800 truncate mb-1">
+                                    {{ cell.assignment.work_order.product.name }}
+                                </div>
+                                <div class="text-[11px] text-gray-600 font-mono flex justify-between mb-1">
+                                    <span>Target Shift:</span>
+                                    <span class="font-bold">{{ cell.assignment.planned_target_units }} pcs</span>
+                                </div>
+                                <div class="w-full bg-emerald-200 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ cell.assignment.work_order.progress_percent }}%;"></div>
+                                </div>
+                                <div class="text-[10px] text-gray-500 font-mono mt-1 text-right rtl:text-left">
+                                    Overall: {{ cell.assignment.work_order.progress_percent }}%
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="h-full min-h-[90px] border border-dashed border-gray-200 rounded-md flex flex-col items-center justify-center p-2 text-center text-gray-400 hover:border-gray-300 hover:bg-gray-50 transition-colors">
+                                <span class="text-xs">No active assignment</span>
+                                <button type="button" 
+                                        onclick="openAssignModalQuick('{{ row.machine.id }}', '{{ cell.shift.id }}')"
+                                        class="mt-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 hover:underline">
+                                    + Assign Order
+                                </button>
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                            No machines configured on this line. Use Master Data wizard to deploy machines.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Shift Modal -->
+<div id="assignShiftModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900">
+                {% if request.LANGUAGE_CODE == 'ar' %}تخصيص أمر عمل لوردية{% else %}Assign Work Order to Shift{% endif %}
+            </h3>
+            <button onclick="document.getElementById('assignShiftModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'work_order_assign_shift' %}" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Select Work Order *</label>
+                <select name="work_order_id" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for wo in available_orders %}
+                    <option value="{{ wo.id }}">
+                        {{ wo.order_number }} - {{ wo.product.code }} (Remaining: {{ wo.remaining_quantity }})
+                    </option>
+                    {% empty %}
+                    <option value="" disabled>No planned or in-progress orders available</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Machine / Asset</label>
+                    <select id="modalMachineSelect" name="machine_id" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="">Entire Production Line</option>
+                        {% for m in machines %}
+                        <option value="{{ m.id }}">{{ m.name }} ({{ m.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Shift *</label>
+                    <select id="modalShiftSelect" name="shift_id" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        {% for s in shifts %}
+                        <option value="{{ s.id }}">{{ s.name }} ({{ s.start_time|time:'H:i' }} - {{ s.end_time|time:'H:i' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Scheduled Date *</label>
+                    <input type="date" name="scheduled_date" value="{{ target_date|date:'Y-m-d' }}" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Target Units in Shift *</label>
+                    <input type="number" name="target_units" value="5000" min="1" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Assignment Notes</label>
+                <input type="text" name="notes" placeholder="Optional notes for shift leader..." class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('assignShiftModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 shadow-sm">
+                    Confirm Assignment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAssignModalQuick(machineId, shiftId) {
+    var machSelect = document.getElementById('modalMachineSelect');
+    var shiftSelect = document.getElementById('modalShiftSelect');
+    if (machSelect && machineId) { machSelect.value = machineId; }
+    if (shiftSelect && shiftId) { shiftSelect.value = shiftId; }
+    document.getElementById('assignShiftModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}
+

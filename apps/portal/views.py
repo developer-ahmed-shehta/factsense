@@ -6,6 +6,15 @@ Enforces strict server-side role permissions and clear batch labeling.
 from django.shortcuts import render, redirect
 from apps.accounts.decorators import role_required
 from apps.masterdata.models import Product, Machine, Line, Factory
+from apps.masterdata import views as md_views
+from apps.telemetry import views as telemetry_views
+from apps.operations import views as operations_views
+from apps.quality import views as quality_views
+from apps.alerts import views as alerts_views
+from apps.planning import views as planning_views
+from apps.copilot import views as copilot_views
+from apps.reports import views as reports_views
+from apps.portal.services.dashboard_service import get_executive_dashboard_data
 
 
 # ==============================================================================
@@ -16,60 +25,27 @@ from apps.masterdata.models import Product, Machine, Line, Factory
 def operator_home(request):
     """
     Operator Touch Console landing (/operator/).
+    Delegates to full-featured Batch 4 glove-friendly touch console.
     """
-    return render(request, 'portal/operator_home.html', {
-        'page_title': 'Operator Machine Console',
-        'page_title_ar': 'لوحة تحكم مشغل الماكينة',
-        'batch_id': 'Batch 4',
-        'scheduled_features': [
-            '10"–15" Glove-friendly touch ergonomic interface (48px+ touch targets)',
-            'Large digital good piece counter with +1, +5, +10 quick touch increments',
-            'Defect and scrap counter with rapid categorization keypad',
-            'Prominent equipment state banner (RUNNING, DOWNTIME, BLOCKED, STARVED)',
-            '2-Level Stoppage classification and stop-splitting modal',
-            'Maintenance call button and changeover initiator',
-            'Kiosk session exclusivity (one operator per machine)',
-        ]
-    })
+    return operations_views.operator_console_view(request)
 
 
 @role_required('supervisor', 'maintenance', 'quality', 'planner', 'supply_chain', 'manager', 'admin')
 def floor_home(request):
     """
     Supervisor Live Floor Hub landing (/floor/).
+    Displays 20-machine factory matrix, bottleneck indicators, and shift pacing.
     """
-    return render(request, 'portal/supervisor_home.html', {
-        'page_title': 'Shop Floor Live Overview',
-        'page_title_ar': 'نظرة عامة حية لصالة الإنتاج',
-        'batch_id': 'Batch 4',
-        'scheduled_features': [
-            'Visual 20-machine factory matrix with real-time state color borders',
-            'Active work order progress and pacing against shift quota',
-            'Bottleneck machine constraint identification',
-            'Shift progress strip with Availability, Performance, and Quality gauges',
-            'Quick maintenance technician dispatch',
-            'Guided 3-step shift handover wizard',
-        ]
-    })
+    return operations_views.floor_matrix_view(request)
 
 
 @role_required('maintenance', 'supervisor', 'admin')
 def maintenance_home(request):
     """
     Maintenance Operations Center landing (/maintenance/).
+    5-Stage Kanban Incident Board with technician repair clock-in and machine release.
     """
-    return render(request, 'portal/maintenance_home.html', {
-        'page_title': 'Maintenance Operations Center',
-        'page_title_ar': 'مركز عمليات الصيانة وإدارة الأعطال',
-        'batch_id': 'Batch 4',
-        'scheduled_features': [
-            '5-Stage Kanban Incident Board (Open -> Assigned -> In Progress -> Waiting Spares -> Resolved)',
-            'Mobile-friendly technician repair clock-in sheet',
-            'Spare parts requisition with SLA timer pausing',
-            'Mandatory root cause and solution logging before machine release',
-            'Machine force-lockout workflow and release to production',
-        ]
-    })
+    return operations_views.maintenance_hub_view(request)
 
 
 
@@ -77,20 +53,27 @@ def maintenance_home(request):
 def quality_home(request):
     """
     Quality & Weight Giveaway SPC landing (/quality/).
+    Delegates to full-featured Batch 5 Quality & SPC hub.
     """
-    return render(request, 'portal/quality_home.html', {
-        'page_title': 'Quality Assurance & SPC Control Hub',
-        'page_title_ar': 'إدارة الجودة والتحكم الإحصائي في العمليات (SPC)',
-        'batch_id': 'Batch 5',
-        'scheduled_features': [
-            'ISO 22400-2 Statistical Process Control (X-bar and R charts with UCL/LCL/CL)',
-            'Gaussian Normal Distribution bell curve with process mean and standard deviation',
-            'Process capability metrics (Cp and Cpk centering indices)',
-            'Overfill product giveaway financial cost calculator',
-            'Interactive recalibration slider showing raw material savings with zero underfill risk',
-            'Raw weight sample exports to CSV/Excel',
-        ]
-    })
+    return quality_views.quality_hub_view(request)
+
+
+@role_required('quality', 'supervisor', 'manager', 'admin')
+def quality_samples(request):
+    """Weight samples and subgroups ledger."""
+    return quality_views.quality_samples_view(request)
+
+
+@role_required('quality', 'supervisor', 'manager', 'admin')
+def quality_defects(request):
+    """Quality defects and scrap breakdown."""
+    return quality_views.quality_defects_view(request)
+
+
+@role_required('quality', 'supervisor', 'manager', 'admin')
+def quality_giveaway(request):
+    """Overfill product giveaway and recalibration deep-dive."""
+    return quality_views.quality_giveaway_view(request)
 
 
 @role_required('planner', 'admin', 'manager')
@@ -102,43 +85,57 @@ def planner_home(request):
     return redirect('products_list')
 
 
-@role_required('supply_chain', 'planner', 'manager', 'admin')
+@role_required('supply_chain', 'planner', 'manager', 'admin', 'supervisor')
 def work_orders_home(request):
     """
     Supply Chain & Work Order Dispatch landing (/work-orders/).
+    Delegates to full-featured Batch 6 dispatch hub.
     """
-    return render(request, 'portal/supply_chain_home.html', {
-        'page_title': 'Work Order Dispatch & Supply Chain',
-        'page_title_ar': 'إدارة أوامر العمل وسلاسل الإمداد',
-        'batch_id': 'Batch 6',
-        'scheduled_features': [
-            'Consolidated ERP / Odoo work order synchronization queue',
-            'Visual machine assignment calendar across Morning, Evening, and Night shifts',
-            'Bill of Operations & multi-stage process routing tracker',
-            'Component material delivery and staged progress monitoring',
-            'Work order short-close reconciliation workflow',
-        ]
-    })
+    return planning_views.work_orders_dispatch_view(request)
 
 
-@role_required('manager', 'admin')
+@role_required('manager', 'supervisor', 'admin')
 def manager_home(request):
     """
     Executive Management Overview & Dashboard landing (/dashboard/).
+    Renders live 'So What?' banner, World-Class benchmark gauges, Six Big Losses waterfall,
+    shift progress pacing, and physical conveyor machine strip.
     """
-    return render(request, 'portal/manager_home.html', {
+    lines = Line.objects.all()
+    selected_line_id = request.GET.get('line')
+    line = Line.objects.filter(id=selected_line_id).first() if selected_line_id else lines.first()
+
+    dashboard_data = get_executive_dashboard_data(line=line)
+
+    context = {
         'page_title': 'Executive OEE & Plant Command Center',
         'page_title_ar': 'لوحة القيادة التنفيذية ومؤشرات الفعالية الكلية (OEE)',
-        'batch_id': 'Batch 5',
-        'scheduled_features': [
-            'Actionable "So What?" Executive Banner with active bottleneck and loss summary',
-            'Line OEE benchmark gauges against World-Class 85.0% target (Availability, Performance, Quality)',
-            'TPM Six Big Losses financial waterfall visualizer',
-            'Shift progress pacing chart and hourly production run trend',
-            'Live conveyor strip showing all line machines in physical sequence',
-            'Financial downtime opportunity cost calculator',
-        ]
-    })
+        'lines': lines,
+        'selected_line': line,
+        'dashboard': dashboard_data,
+    }
+    return render(request, 'portal/manager_home.html', context)
+
+
+@role_required('manager', 'supervisor', 'admin')
+def manager_losses(request):
+    """
+    Detailed TPM Six Big Losses Analysis (/dashboard/losses/).
+    """
+    lines = Line.objects.all()
+    selected_line_id = request.GET.get('line')
+    line = Line.objects.filter(id=selected_line_id).first() if selected_line_id else lines.first()
+
+    dashboard_data = get_executive_dashboard_data(line=line)
+
+    context = {
+        'page_title': 'TPM Six Big Losses Analysis',
+        'page_title_ar': 'تحليل خسائر الصيانة الإنتاجية الشاملة الست الكبرى',
+        'lines': lines,
+        'selected_line': line,
+        'dashboard': dashboard_data,
+    }
+    return render(request, 'portal/manager_losses.html', context)
 
 
 @role_required('admin')
@@ -165,20 +162,9 @@ def admin_home(request):
 def controller_home(request):
     """
     Simulator & Demo Controller landing (/controller/).
+    Delegates to full-featured Batch 3 telemetry simulation view.
     """
-    return render(request, 'portal/controller_home.html', {
-        'page_title': 'Simulation Controller & Signal Generator',
-        'page_title_ar': 'لوحة التحكم في المحاكاة ومولد الإشارات التجريبية',
-        'batch_id': 'Batch 3',
-        'scheduled_features': [
-            'Synthetic telemetry pulse generator (CPM, vibration, temperature, states)',
-            'Simulation clock multiplier (Paused, 1x, 2x, 5x, 10x speed)',
-            '5 Pre-built scenario injectors: Cap Chute Jam, Overfill Giveaway Drift, Mechanical Breakdown, Defect Burst, Golden Run (95% OEE)',
-            'Manual machine telemetry override sliders',
-            'Shift transition trigger and isolated demo database reset',
-            'Persistent "DEMO MODE ACTIVE" visual badge',
-        ]
-    })
+    return telemetry_views.controller_home_view(request)
 
 
 # ==============================================================================
@@ -204,103 +190,76 @@ def generic_module_view(request, title, title_ar, batch_id, features, allowed_ro
 # Operator Secondary
 @role_required('operator', 'admin')
 def operator_production(request):
-    return generic_module_view(request, 'Operator Production Entry', 'تسجيل كميات الإنتاج', 'Batch 4', [
-        'Touch-based numeric scrap and good piece counter',
-        'Current running work order and target speed',
-    ], ['operator', 'admin'])
+    """Direct route to operator touch console production tab."""
+    return operations_views.operator_console_view(request)
 
 @role_required('operator', 'admin')
 def operator_stoppages(request):
-    return generic_module_view(request, 'Operator Stoppages & Classification', 'تصنيف التوقفات للمشغل', 'Batch 4', [
-        'Active machine stoppage timer',
-        'One-touch 2-level root cause categorization modal',
-    ], ['operator', 'admin'])
+    """Direct shortcut to operator console stoppage classification."""
+    return redirect('operator_home')
 
 
 # Supervisor Secondary
-@role_required('supervisor', 'planner', 'admin')
+@role_required('supervisor', 'planner', 'admin', 'manager')
 def shifts_home(request):
-    return generic_module_view(request, 'Shift Lifecycle & Schedules', 'إدارة الورديات وجداول العمل', 'Batch 2', [
-        'Shift definition (Morning, Evening, Night) and planned breaks',
-        'Active shift progress and elapsed operating time',
-        'End-of-shift handover sign-off checklist',
-    ], ['supervisor', 'planner', 'admin'])
+    """Shift schedules and guided 3-step handover hub."""
+    return operations_views.shifts_hub_view(request)
 
 @role_required('supervisor', 'maintenance', 'manager', 'admin')
 def stoppages_home(request):
-    return generic_module_view(request, 'Stoppage Registry & Downtime Intelligence', 'سجل التوقفات وتحليل زمن التعطل', 'Batch 4', [
-        'Real-time active downtime event registry',
-        'Juran 80/20 Pareto curve (By Duration vs By Frequency)',
-        'Downtime event split and reclassification audit',
-    ], ['supervisor', 'maintenance', 'manager', 'admin'])
+    """Stoppage registry and Juran 80/20 Pareto analytics."""
+    return operations_views.stoppages_hub_view(request)
 
 @role_required('supervisor', 'manager', 'admin')
 def smed_home(request):
-    return generic_module_view(request, 'SMED Changeover Stopwatch', 'مؤقت تبديل القوالب والمنتجات (SMED)', 'Batch 4', [
-        'Shigeo Shingo 4-Phase SMED changeover tracker',
-        'Phase 1: Line Clearance & CIP Purge',
-        'Phase 2: Mechanical Tooling Change',
-        'Phase 3: Digital Recipe Loading',
-        'Phase 4: Test Run & Speed Ramp-up Rejects',
-    ], ['supervisor', 'manager', 'admin'])
+    """Digital SMED 4-Phase Changeover Stopwatch."""
+    return operations_views.smed_hub_view(request)
 
 @role_required('supervisor', 'maintenance', 'quality', 'planner', 'manager', 'admin')
 def alerts_home(request):
-    return generic_module_view(request, 'Real-Time Alerts & Alarm Storm Engine', 'مركز التنبيهات المباشرة وإدارة الإنذارات', 'Batch 5', [
-        'Scoped alert rules (Downtime duration, low speed, defect spikes, vibration, temperature)',
-        'Alarm storm suppression window and deduplication',
-        'Auto-resolve watchdog returning alerts to normal when machine resumes',
-        'Direct button to spawn formal Maintenance Ticket from alert',
-    ], ['supervisor', 'maintenance', 'quality', 'planner', 'manager', 'admin'])
+    """
+    Real-Time Alerts & Alarm Storm Engine landing (/alerts/).
+    Delegates to full-featured Batch 5 alerts hub.
+    """
+    return alerts_views.alerts_hub_view(request)
 
-@role_required('supervisor', 'maintenance', 'quality', 'planner', 'manager', 'admin')
+@role_required('supervisor', 'maintenance', 'quality', 'planner', 'manager', 'admin', 'supply_chain')
 def copilot_home(request):
-    return generic_module_view(request, 'FactSense Industrial AI Copilot', 'المساعد الذكي للمصنع (Dual-Engine AI)', 'Batch 7', [
-        'Dual-Engine: Google Gemini Flash Cloud API + Offline Deterministic Heuristics',
-        'Bilingual Natural Language Q&A in English and Arabic',
-        'Context-aware database queries for OEE, bottlenecks, stops, and giveaway losses',
-        'Interactive clickable action chips linking to machine consoles and Pareto charts',
-    ], ['supervisor', 'maintenance', 'quality', 'planner', 'manager', 'admin'])
+    """
+    FactSense Industrial AI Copilot portal (/copilot/).
+    Delegates to full-featured Batch 7 Dual-Engine Copilot.
+    """
+    return copilot_views.copilot_view(request)
 
 @role_required('supervisor', 'maintenance', 'quality', 'planner', 'supply_chain', 'manager', 'admin')
 def reports_home(request):
-    return generic_module_view(request, 'Shift Handover & Production Reports', 'تقارير تسليم الوردية والإنتاج', 'Batch 7', [
-        'Official 4-bullet executive shift handover summary',
-        'High-resolution PDF report export ready for print',
-        'Multi-tab Excel (.xlsx) workbook export for data science',
-        'Automated report subscriptions and email/Telegram distribution',
-    ], ['supervisor', 'maintenance', 'quality', 'planner', 'supply_chain', 'manager', 'admin'])
+    """
+    Shift Handover & Production Reports Hub (/reports/).
+    Delegates to full-featured Batch 7 reporting center.
+    """
+    return reports_views.reports_home_view(request)
 
 
 # Maintenance Secondary
 @role_required('maintenance', 'admin')
 def maintenance_machines(request):
-    return generic_module_view(request, 'Asset Health & Equipment Status', 'حالة الماكينات والأصول الصناعية', 'Batch 4', [
-        'Machine maintenance telemetry (Vibration RMS, temperature)',
-        'Equipment history, MTBF, and maintenance ticket logs',
-    ], ['maintenance', 'admin'])
+    """Asset health & live status delegating to maintenance hub."""
+    return operations_views.maintenance_hub_view(request)
 
 @role_required('maintenance', 'admin')
 def maintenance_spares(request):
-    return generic_module_view(request, 'Spare Parts Requests & Inventory', 'طلبات قطع الغيار ومخزون الصيانة', 'Batch 4', [
-        'Spare parts requisition workflow',
-        'Ticket pause on parts delay with SLA clock adjustment',
-    ], ['maintenance', 'admin'])
+    """Spare parts inventory and requisition catalog."""
+    return operations_views.maintenance_spares_view(request)
 
 @role_required('maintenance', 'admin')
 def maintenance_history(request):
-    return generic_module_view(request, 'Repair History & Root Cause Audit', 'سجل الإصلاحات والتحليل الجذري للأعطال', 'Batch 4', [
-        'Historical maintenance tickets with verified solutions',
-        'Technician clock-in/out timestamps and repair durations',
-    ], ['maintenance', 'admin'])
+    """Historical maintenance repairs and root cause audit."""
+    return operations_views.maintenance_history_view(request)
 
 @role_required('maintenance', 'supervisor', 'manager', 'admin')
 def stoppages_reliability(request):
-    return generic_module_view(request, 'Reliability Metrics & MTBF/MTTR', 'مؤشرات الاعتمادية الصناعية وMTBF/MTTR', 'Batch 4', [
-        'MTBF (Mean Time Between Failures)',
-        'MTTR (Mean Time To Repair)',
-        'MTTF (Mean Time To Failure) and Failure Rate (lambda)',
-    ], ['maintenance', 'supervisor', 'manager', 'admin'])
+    """Reliability engineering KPIs (MTBF, MTTR, MTTF, Failure Rate)."""
+    return operations_views.stoppages_reliability_view(request)
 
 
 # Quality Secondary
@@ -329,47 +288,32 @@ def quality_giveaway(request):
 # Planner Secondary
 @role_required('planner', 'admin')
 def planning_processes(request):
-    return generic_module_view(request, 'Process Catalog & Routing Steps', 'دليل العمليات ومراحل التصنيع', 'Batch 2', [
-        'Standard processes (Blow Molding, Filling, Capping, Labeling, Packing)',
-        'Standard sequence and benchmark cycle times',
-    ], ['planner', 'admin'])
+    return md_views.processes_list_view(request)
 
-@role_required('planner', 'admin')
+@role_required('planner', 'admin', 'supervisor', 'manager')
 def planning_rates(request):
-    return generic_module_view(request, 'Machine-Product Rated Speed Matrix', 'مصفوفة السرعات المعيارية للماكينات والمنتجات', 'Batch 2', [
-        'Specific CPM and cycle times per Machine x Product combination',
-        'Effective-dated benchmark rate history',
-    ], ['planner', 'admin'])
+    return md_views.rates_matrix_view(request)
 
-@role_required('planner', 'admin')
+@role_required('planner', 'admin', 'quality', 'supervisor', 'maintenance')
 def planning_reasons(request):
-    return generic_module_view(request, 'Stoppage & Defect Reason Taxonomies', 'تصنيف أسباب التوقفات والعيوب', 'Batch 2', [
-        'Hierarchical stoppage taxonomy (Mechanical, Electrical, Operational, Materials)',
-        'TPM Six Big Losses mapping and department attribution',
-    ], ['planner', 'admin'])
+    return md_views.reasons_taxonomies_view(request)
 
 
 # Supply Chain Secondary
-@role_required('supply_chain', 'planner', 'admin')
+@role_required('supply_chain', 'planner', 'supervisor', 'admin')
 def work_orders_schedule(request):
-    return generic_module_view(request, 'Production Schedule Matrix', 'جدول الإنتاج الزمني', 'Batch 6', [
-        'Shift-by-shift machine allocation timeline',
-        'Target quantities and order completion pacing',
-    ], ['supply_chain', 'planner', 'admin'])
+    """Production schedule and machine x shift assignment matrix."""
+    return planning_views.work_orders_schedule_matrix_view(request)
 
-@role_required('supply_chain', 'admin')
+@role_required('supply_chain', 'planner', 'supervisor', 'admin')
 def work_orders_materials(request):
-    return generic_module_view(request, 'Material Staging & Delivery Tracker', 'تتبع تسليم المواد الخام', 'Batch 6', [
-        'Preforms, caps, labels, cartons delivery status',
-        'BOM stage material readiness',
-    ], ['supply_chain', 'admin'])
+    """Raw material component delivery and staging tracker."""
+    return planning_views.work_orders_materials_view(request)
 
-@role_required('supply_chain', 'admin')
+@role_required('supply_chain', 'planner', 'manager', 'admin')
 def work_orders_erp_sync(request):
-    return generic_module_view(request, 'ERP / Odoo Synchronization Queue', 'طابور مزامنة نظام ERP / أودو', 'Batch 6', [
-        'External work order import status and retry engine',
-        'Conflict queue and idempotency validation',
-    ], ['supply_chain', 'admin'])
+    """ERP / Odoo synchronization adapter and conflict resolution queue."""
+    return planning_views.work_orders_erp_sync_view(request)
 
 
 # Manager Secondary
@@ -394,12 +338,9 @@ def admin_roles(request):
     roles = Role.objects.all().order_by('sequence')
     return render(request, 'portal/admin_roles.html', {'roles': roles})
 
-@role_required('admin')
+@role_required('admin', 'planner', 'maintenance', 'supervisor')
 def admin_machines(request):
-    return generic_module_view(request, 'Machine Asset Setup', 'تهيئة الماكينات والأصول', 'Batch 2', [
-        'Machine configuration, ideal CPM, line sequence',
-        'Hardware pairing and critical constraint designation',
-    ], ['admin'])
+    return md_views.machines_list_view(request)
 
 @role_required('admin')
 def admin_settings(request):
@@ -408,12 +349,9 @@ def admin_settings(request):
         'Branding customization and theme preferences',
     ], ['admin'])
 
-@role_required('admin')
+@role_required('admin', 'supervisor')
 def admin_gateways(request):
-    return generic_module_view(request, 'IoT Gateways & QR Onboarding', 'بوابات إنترنت الأشياء والربط السريع عبر QR', 'Batch 2', [
-        'Hardware token claim QR code generator',
-        'ESP32, Raspberry Pi, and Moxa edge gateway status',
-    ], ['admin'])
+    return md_views.kiosk_pairing_view(request)
 
 @role_required('admin')
 def admin_integrations(request):
@@ -432,18 +370,15 @@ def admin_audit(request):
 # Controller Secondary
 @role_required('controller', 'admin')
 def controller_scenarios(request):
-    return generic_module_view(request, 'Simulator Scenario Library', 'مكتبة سيناريوهات المحاكاة', 'Batch 3', [
-        'Cap Chute Jam, Overfill Drift, Mechanical Breakdown, Defect Burst, Golden Run',
-    ], ['controller', 'admin'])
+    """Direct shortcut to scenario library section on controller."""
+    return redirect('controller_home')
 
 @role_required('controller', 'admin')
 def controller_machines(request):
-    return generic_module_view(request, 'Simulator Machine Overrides', 'التحكم اليدوي في متغيرات الماكينات', 'Batch 3', [
-        'Live sliders for CPM speed, vibration, temperature, and machine states',
-    ], ['controller', 'admin'])
+    """Direct shortcut to machine overrides section on controller."""
+    return redirect('controller_home')
 
 @role_required('controller', 'admin')
 def controller_shift(request):
-    return generic_module_view(request, 'Simulator Shift Rotation Control', 'التحكم في تدوير الورديات التجريبية', 'Batch 3', [
-        'Instant shift end trigger and synthetic handover generation',
-    ], ['controller', 'admin'])
+    """Direct shortcut to simulation shift controls on controller."""
+    return redirect('controller_home')

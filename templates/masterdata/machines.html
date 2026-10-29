@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Machine Asset Setup" %} · {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="fs-content-container">
+
+  <!-- Page Header -->
+  <div class="fs-page-header">
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}تهيئة أصول وماكينات الإنتاج{% else %}Machine Asset Setup{% endif %}
+      </h1>
+      <p class="fs-page-subtitle">
+        {% if is_rtl %}
+          إدارة الأصول الصناعية، وتعيين تسلسل الخط، وتحديد عنق الزجاجة، وبروتوكولات الربط بالحساسات والأجهزة اللوحية.
+        {% else %}
+          Configure industrial assets, physical line sequence, bottleneck designation, sensor telemetry protocols, and paired tablet kiosks.
+        {% endif %}
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <a href="{% url 'topology' %}" class="fs-btn fs-btn-secondary">
+        {% if is_rtl %}عرض المخطط الطوبولوجي{% else %}Topology View{% endif %}
+      </a>
+      {% if can_edit %}
+        <button type="button" class="fs-btn fs-btn-primary" onclick="openAddModal()">
+          {% if is_rtl %}إضافة ماكينة جديدة{% else %}Add Machine Asset{% endif %}
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="fs-table-card" style="padding: 16px 20px; margin-bottom: 20px;">
+    <form method="GET" action="{% url 'machines_list' %}" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 0;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="filter_line" style="font-size: 13px; font-weight: 600; color: #475569;">
+          {% if is_rtl %}تصفية حسب الخط:{% else %}Filter by Line:{% endif %}
+        </label>
+        <select id="filter_line" name="line" class="fs-select" onchange="this.form.submit()" style="min-width: 220px;">
+          <option value="">{% trans "All Production Lines" %}</option>
+          {% for l in lines %}
+            <option value="{{ l.id }}" {% if line_filter == l.id|stringformat:"s" %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-left: auto; font-size: 13px; color: #64748B;">
+        Total Configured Assets: <strong>{{ total_machines }}</strong>
+      </div>
+    </form>
+  </div>
+
+  <!-- Machines Table Card -->
+  <div class="fs-table-card">
+    <div style="overflow-x: auto;">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">SEQ</th>
+            <th style="width: 130px;">CODE</th>
+            <th>NAME</th>
+            <th>LINE</th>
+            <th>CATEGORY</th>
+            <th>CRITICALITY</th>
+            <th>IDEAL CPM</th>
+            <th>SENSOR PROTOCOL</th>
+            <th>PAIRED KIOSK</th>
+            {% if can_edit %}<th style="text-align: right;">ACTIONS</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in machines %}
+            <tr>
+              <td class="font-mono" style="font-weight: 700; color: #475569;">#{{ m.sequence_order }}</td>
+              <td class="font-mono" style="font-weight: 700; color: #0F172A;">{{ m.code }}</td>
+              <td>
+                <div style="font-weight: 600; color: #1E293B;">
+                  {% if is_rtl and m.name_ar %}{{ m.name_ar }}{% else %}{{ m.name }}{% endif %}
+                </div>
+                {% if m.is_bottleneck %}
+                  <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700; border: 1px solid #FCD34D; font-size: 10px; margin-top: 2px;">
+                    BOTTLENECK
+                  </span>
+                {% endif %}
+              </td>
+              <td style="font-size: 13px; color: #475569;">{{ m.line.name }}</td>
+              <td><span class="fs-process-badge">{{ m.get_category_display }}</span></td>
+              <td>
+                <span class="fs-role-tag" style="{% if m.criticality_rank == 'A' %}background: #FEE2E2; color: #991B1B; font-weight: 700;{% endif %}">
+                  RANK {{ m.criticality_rank }}
+                </span>
+              </td>
+              <td class="font-mono" style="font-weight: 600;">{{ m.ideal_run_rate_cpm }} CPM</td>
+              <td style="font-size: 12px; color: #64748B;">
+                <strong>{{ m.get_sensor_protocol_display }}</strong>
+                {% if m.sensor_ip %}<div class="font-mono" style="font-size: 11px;">{{ m.sensor_ip }}</div>{% endif %}
+              </td>
+              <td>
+                {% if m.kiosks.first %}
+                  <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">
+                    {{ m.kiosks.first.claim_code }}
+                  </span>
+                {% else %}
+                  <span style="color: #94A3B8; font-size: 12px;">Unassigned</span>
+                {% endif %}
+              </td>
+              {% if can_edit %}
+                <td style="text-align: right;">
+                  <button type="button" class="fs-btn-action" onclick="openEditModal('{{ m.id }}', '{{ m.code }}', '{{ m.name|escapejs }}', '{{ m.name_ar|escapejs }}', '{{ m.category }}', '{{ m.sequence_order }}', '{{ m.criticality_rank }}', '{{ m.ideal_run_rate_cpm }}', '{{ m.is_bottleneck }}', '{{ m.sensor_protocol }}', '{{ m.sensor_ip|default:"" }}')">
+                    {% trans "Edit" %}
+                  </button>
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="10" style="text-align: center; padding: 36px; color: #64748B;">
+                No machines found. Use the Onboarding Wizard or click "Add Machine Asset" above.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Add Machine Asset -->
+<div id="addModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 600px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}إضافة أصل ماكينة جديد{% else %}Add New Machine Asset{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'machine_add' %}">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div class="fs-form-group">
+          <label class="fs-label" for="add_line_id">Production Line *</label>
+          <select id="add_line_id" name="line_id" class="fs-select" required>
+            {% for l in lines %}
+              <option value="{{ l.id }}">{{ l.name }} ({{ l.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_code">Machine Code *</label>
+            <input type="text" id="add_code" name="code" class="fs-input font-mono" placeholder="e.g. FL-01" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_category">Category *</label>
+            <select id="add_category" name="category" class="fs-select">
+              <option value="BLOW_MOLDER">Blow Molder</option>
+              <option value="RINSER">Rinser</option>
+              <option value="FILLER" selected>Filler</option>
+              <option value="CAPPER">Capper</option>
+              <option value="LABELER">Labeler</option>
+              <option value="PACKER">Case Packer</option>
+              <option value="PALLETIZER">Palletizer</option>
+              <option value="SEALER">Sealer</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_name">Name (English) *</label>
+            <input type="text" id="add_name" name="name" class="fs-input" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_name_ar">Name (Arabic)</label>
+            <input type="text" id="add_name_ar" name="name_ar" class="fs-input">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_seq">Sequence Order *</label>
+            <input type="number" id="add_seq" name="sequence_order" class="fs-input font-mono" value="10" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_criticality">Criticality Rank *</label>
+            <select id="add_criticality" name="criticality_rank" class="fs-select">
+              <option value="A">A - Bottleneck / Critical</option>
+              <option value="B" selected>B - Major Machine</option>
+              <option value="C">C - Buffer / Secondary</option>
+            </select>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_cpm">Ideal CPM *</label>
+            <input type="number" step="0.5" id="add_cpm" name="ideal_run_rate_cpm" class="fs-input font-mono" value="120.0" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_proto">Sensor Protocol *</label>
+            <select id="add_proto" name="sensor_protocol" class="fs-select">
+              <option value="SIMULATED">Virtual Simulator</option>
+              <option value="MODBUS_TCP">Modbus TCP / IP</option>
+              <option value="GPIO_PULSE">GPIO Digital Pulse</option>
+              <option value="MQTT">MQTT Broker</option>
+              <option value="OPC_UA">OPC-UA Server</option>
+            </select>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="add_ip">Sensor / Gateway IP</label>
+            <input type="text" id="add_ip" name="sensor_ip" class="fs-input font-mono" placeholder="192.168.1.100">
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="add_is_bn" name="is_bottleneck" style="accent-color: #D97706; transform: scale(1.2);">
+          <label for="add_is_bn" style="font-size: 13px; font-weight: 700; color: #92400E; cursor: pointer;">
+            Designate as Designated Bottleneck Asset for this line
+          </label>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeAddModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Edit Machine Asset -->
+<div id="editModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 600px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}تعديل بيانات الماكينة{% else %}Edit Machine Asset{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeEditModal()">&times;</button>
+    </div>
+    <form id="editForm" method="POST" action="">
+      {% csrf_token %}
+      <div class="fs-modal-body">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label">Machine Code</label>
+            <input type="text" id="edit_code" class="fs-input font-mono" readonly style="background: #F1F5F9; color: #64748B;">
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_category">Category *</label>
+            <select id="edit_category" name="category" class="fs-select">
+              <option value="BLOW_MOLDER">Blow Molder</option>
+              <option value="RINSER">Rinser</option>
+              <option value="FILLER">Filler</option>
+              <option value="CAPPER">Capper</option>
+              <option value="LABELER">Labeler</option>
+              <option value="PACKER">Case Packer</option>
+              <option value="PALLETIZER">Palletizer</option>
+              <option value="SEALER">Sealer</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_name">Name (English) *</label>
+            <input type="text" id="edit_name" name="name" class="fs-input" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_name_ar">Name (Arabic)</label>
+            <input type="text" id="edit_name_ar" name="name_ar" class="fs-input">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_seq">Sequence Order *</label>
+            <input type="number" id="edit_seq" name="sequence_order" class="fs-input font-mono" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_criticality">Criticality Rank *</label>
+            <select id="edit_criticality" name="criticality_rank" class="fs-select">
+              <option value="A">A - Bottleneck / Critical</option>
+              <option value="B">B - Major Machine</option>
+              <option value="C">C - Buffer / Secondary</option>
+            </select>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_cpm">Ideal CPM *</label>
+            <input type="number" step="0.5" id="edit_cpm" name="ideal_run_rate_cpm" class="fs-input font-mono" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_proto">Sensor Protocol *</label>
+            <select id="edit_proto" name="sensor_protocol" class="fs-select">
+              <option value="SIMULATED">Virtual Simulator</option>
+              <option value="MODBUS_TCP">Modbus TCP / IP</option>
+              <option value="GPIO_PULSE">GPIO Digital Pulse</option>
+              <option value="MQTT">MQTT Broker</option>
+              <option value="OPC_UA">OPC-UA Server</option>
+            </select>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="edit_ip">Sensor / Gateway IP</label>
+            <input type="text" id="edit_ip" name="sensor_ip" class="fs-input font-mono">
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="edit_is_bn" name="is_bottleneck" style="accent-color: #D97706; transform: scale(1.2);">
+          <label for="edit_is_bn" style="font-size: 13px; font-weight: 700; color: #92400E; cursor: pointer;">
+            Designate as Designated Bottleneck Asset for this line
+          </label>
+        </div>
+
+      </div>
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeEditModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openAddModal() {
+  document.getElementById('addModal').style.display = 'flex';
+}
+function closeAddModal() {
+  document.getElementById('addModal').style.display = 'none';
+}
+function openEditModal(id, code, name, nameAr, cat, seq, rank, cpm, isBn, proto, ip) {
+  document.getElementById('editForm').action = '/masterdata/machines/' + id + '/edit/';
+  document.getElementById('edit_code').value = code;
+  document.getElementById('edit_name').value = name;
+  document.getElementById('edit_name_ar').value = nameAr;
+  document.getElementById('edit_category').value = cat;
+  document.getElementById('edit_seq').value = seq;
+  document.getElementById('edit_criticality').value = rank;
+  document.getElementById('edit_cpm').value = cpm;
+  document.getElementById('edit_proto').value = proto;
+  document.getElementById('edit_ip').value = ip;
+  document.getElementById('edit_is_bn').checked = (isBn === 'True' || isBn === true);
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+</script>
+{% endblock %}
+

@@ -1,55 +1,454 @@
 {% extends 'base.html' %}
+{% load static i18n %}
 
-{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+{% block title %}{% trans "Simulation Controller" %} · {{ BRAND_NAME }}{% endblock %}
 
 {% block content %}
-<div class="fs-controller-page">
+<div class="fs-content-container">
 
+  <!-- Persistent Warning Ribbon: DEMO MODE ACTIVE -->
+  <div style="background: #FEF3C7; border: 1px solid #FCD34D; border-left: 5px solid #D97706; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="fs-role-tag" style="background: #D97706; color: #FFFFFF; font-weight: 700; letter-spacing: 0.05em; font-size: 11px;">
+        DEMO MODE ACTIVE
+      </span>
+      <span style="font-size: 13px; font-weight: 600; color: #92400E;">
+        {% if is_rtl %}
+          المحاكاة نشطة: جميع إشارات التليمتري وسيناريوهات الأعطال معزولة تماماً عن سجلات الإنتاج الحقيقية للمصنع.
+        {% else %}
+          Synthetic telemetry generation is active. All synthetic pulses and simulated downtime are isolated from live production.
+        {% endif %}
+      </span>
+    </div>
+    <div style="font-size: 12px; font-family: monospace; color: #B45309; font-weight: 700;">
+      CLK: {{ sim.clock_multiplier }}x &bull; TICKS: #{{ sim.tick_count }} &bull; SCENARIO: {{ sim.active_scenario }}
+    </div>
+  </div>
+
+  <!-- Page Header & Line Selector -->
   <div class="fs-page-header">
-    <div class="fs-page-title-wrap">
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-        <span class="fs-role-tag" style="background: #0284C7; color: #FFFFFF; border-color: #0284C7; font-weight: 700;">
-          DEMO MASTER ACTIVE
-        </span>
-        <h1 class="fs-page-title" style="margin: 0;">
-          {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
-        </h1>
-      </div>
+    <div>
+      <h1 class="fs-page-title">
+        {% if is_rtl %}لوحة التحكم في المحاكاة ومولد الإشارات التجريبية{% else %}Simulation Controller & Signal Generator{% endif %}
+      </h1>
       <p class="fs-page-subtitle">
-        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Telemetry Ingestion Simulator & Scenario Injector
+        {% if is_rtl %}
+          توليد إشارات حساسات الـ PLC، وحقن سيناريوهات التوقف والأعطال الخمسة، واختبار خوارزميات الـ OEE وفق معيار ISO 22400.
+        {% else %}
+          Synthetic telemetry pulse generation, 5 pre-built scenario injectors, clock multipliers, and ISO 22400 calculation verification.
+        {% endif %}
       </p>
     </div>
 
-    <div class="fs-page-actions">
-      <span class="fs-batch-badge">
-        <span>Batch 3 &bull; Simulator Delivery</span>
-      </span>
+    <!-- Line Selector Dropdown -->
+    <div>
+      <form method="GET" action="{% url 'controller_home' %}" style="display: flex; gap: 8px; align-items: center; margin: 0;">
+        <label for="ctrl_line" style="font-size: 13px; font-weight: 600; color: #475569;">
+          {% if is_rtl %}الخط المستهدف:{% else %}Target Line:{% endif %}
+        </label>
+        <select id="ctrl_line" name="line_id" class="fs-select" onchange="this.form.submit()" style="min-width: 220px;">
+          {% for l in lines %}
+            <option value="{{ l.id }}" {% if selected_line and selected_line.id == l.id %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
     </div>
   </div>
 
-  <div class="fs-batch-card">
-    <div style="margin-bottom: 12px;">
-      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
-        Signal Simulator & Demo Controller Roadmap (Batch 3 Scope)
-      </h2>
+  {% if selected_line %}
+    <!-- Master Simulator Control Bar -->
+    <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      
+      <!-- Clock Speed Multipliers -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase;">
+          CLOCK SPEED:
+        </span>
+        <form method="POST" action="{% url 'controller_clock_apply' %}" style="display: inline-flex; gap: 6px; margin: 0;">
+          {% csrf_token %}
+          <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+          
+          <button type="submit" name="clock_multiplier" value="0.0" class="fs-btn {% if sim.clock_multiplier == 0.0 %}fs-btn-primary{% else %}fs-btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 12px;">
+            Pause (0x)
+          </button>
+          <button type="submit" name="clock_multiplier" value="1.0" class="fs-btn {% if sim.clock_multiplier == 1.0 %}fs-btn-primary{% else %}fs-btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 12px;">
+            1.0x Realtime
+          </button>
+          <button type="submit" name="clock_multiplier" value="2.0" class="fs-btn {% if sim.clock_multiplier == 2.0 %}fs-btn-primary{% else %}fs-btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 12px;">
+            2.0x Fast
+          </button>
+          <button type="submit" name="clock_multiplier" value="5.0" class="fs-btn {% if sim.clock_multiplier == 5.0 %}fs-btn-primary{% else %}fs-btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 12px;">
+            5.0x
+          </button>
+          <button type="submit" name="clock_multiplier" value="10.0" class="fs-btn {% if sim.clock_multiplier == 10.0 %}fs-btn-primary{% else %}fs-btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 12px;">
+            10.0x Warp
+          </button>
+        </form>
+      </div>
+
+      <!-- Action Triggers: Step Tick & Reset -->
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <form method="POST" action="{% url 'controller_step_action' %}" style="margin: 0;">
+          {% csrf_token %}
+          <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+          <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A;">
+            {% if is_rtl %}تقديم خطوة (+10 ثوانٍ){% else %}Step Tick (+10s Simulated){% endif %}
+          </button>
+        </form>
+
+        <form method="POST" action="{% url 'controller_reset_action' %}" style="margin: 0;">
+          {% csrf_token %}
+          <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+          <button type="submit" class="fs-btn fs-btn-secondary" style="color: #DC2626; border-color: #FCA5A5;">
+            {% if is_rtl %}إعادة ضبط المحاكاة{% else %}Reset Simulation{% endif %}
+          </button>
+        </form>
+      </div>
     </div>
 
-    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
-      Per specification precedence, the simulation clock multiplier (1x/2x/5x/10x), 5 pre-built scenario injectors, manual machine overrides, and isolated demo database reset will be delivered in <strong>Batch 3</strong>:
-    </p>
+    <!-- Section 1: Scenario Injectors Library -->
+    <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px;">
+      <div style="margin-bottom: 16px;">
+        <h2 style="font-size: 15px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.05em;">
+          {% if is_rtl %}مكتبة سيناريوهات الاختبار الخمسة (Scenario Injectors){% else %}Scenario Injector Library (5 Pre-Built Industrial Scenarios){% endif %}
+        </h2>
+        <p style="font-size: 13px; color: #64748B; margin-top: 4px;">
+          {% if is_rtl %}
+            اختر أحد السيناريوهات التالية لمحاكاة ظروف تشغيل واقعية وملاحظة الاستجابة الفورية لمؤشرات OEE والخسائر المالية:
+          {% else %}
+            Select a scenario below to inject realistic plant floor events and observe instant OEE and financial loss feedback:
+          {% endif %}
+        </p>
+      </div>
 
-    <ul class="fs-roadmap-list">
-      {% for feature in scheduled_features %}
-        <li class="fs-roadmap-item">
-          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 11 12 14 22 4"></polyline>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-          </svg>
-          <span>{{ feature }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+        
+        <!-- Scenario 1: Cap Chute Jam -->
+        <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; background: {% if sim.active_scenario == 'CAP_CHUTE_JAM' %}#EFF6FF; border-color: #3B82F6;{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">AVAILABILITY LOSS</span>
+              {% if sim.active_scenario == 'CAP_CHUTE_JAM' %}
+                <span class="fs-role-tag" style="background: #2563EB; color: #FFFFFF; font-weight: 700;">ACTIVE</span>
+              {% endif %}
+            </div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">1. Cap Chute Jam</h3>
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin-bottom: 14px;">
+              Capper stops with mechanical jam. Upstream Filler becomes <strong>BLOCKED</strong>; downstream line becomes <strong>STARVED</strong>.
+            </p>
+          </div>
+          <form method="POST" action="{% url 'controller_scenario_apply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <input type="hidden" name="scenario_key" value="CAP_CHUTE_JAM">
+            <button type="submit" class="fs-btn fs-btn-secondary" style="width: 100%; font-size: 12px;">
+              Inject Cap Chute Jam
+            </button>
+          </form>
+        </div>
+
+        <!-- Scenario 2: Overfill Giveaway Drift -->
+        <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; background: {% if sim.active_scenario == 'OVERFILL_GIVEAWAY_DRIFT' %}#EFF6FF; border-color: #3B82F6;{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700;">QUALITY / SPC</span>
+              {% if sim.active_scenario == 'OVERFILL_GIVEAWAY_DRIFT' %}
+                <span class="fs-role-tag" style="background: #2563EB; color: #FFFFFF; font-weight: 700;">ACTIVE</span>
+              {% endif %}
+            </div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">2. Overfill Giveaway Drift</h3>
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin-bottom: 14px;">
+              Filler scale weights drift upwards by <strong>+1.2g</strong> above nominal specification limit, causing giveaway loss.
+            </p>
+          </div>
+          <form method="POST" action="{% url 'controller_scenario_apply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <input type="hidden" name="scenario_key" value="OVERFILL_GIVEAWAY_DRIFT">
+            <button type="submit" class="fs-btn fs-btn-secondary" style="width: 100%; font-size: 12px;">
+              Inject Overfill Drift
+            </button>
+          </form>
+        </div>
+
+        <!-- Scenario 3: Mechanical Breakdown -->
+        <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; background: {% if sim.active_scenario == 'MECHANICAL_BREAKDOWN' %}#EFF6FF; border-color: #3B82F6;{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: #FEE2E2; color: #991B1B; font-weight: 700;">UNPLANNED DOWNTIME</span>
+              {% if sim.active_scenario == 'MECHANICAL_BREAKDOWN' %}
+                <span class="fs-role-tag" style="background: #2563EB; color: #FFFFFF; font-weight: 700;">ACTIVE</span>
+              {% endif %}
+            </div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">3. Mechanical Breakdown</h3>
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin-bottom: 14px;">
+              Blow Molder main drive overheats and faults. Entire downstream packaging line enters <strong>STARVED</strong> state.
+            </p>
+          </div>
+          <form method="POST" action="{% url 'controller_scenario_apply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <input type="hidden" name="scenario_key" value="MECHANICAL_BREAKDOWN">
+            <button type="submit" class="fs-btn fs-btn-secondary" style="width: 100%; font-size: 12px;">
+              Inject Breakdown
+            </button>
+          </form>
+        </div>
+
+        <!-- Scenario 4: Defect Burst -->
+        <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; background: {% if sim.active_scenario == 'DEFECT_BURST' %}#EFF6FF; border-color: #3B82F6;{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: #FFEDD5; color: #C2410C; font-weight: 700;">QUALITY DEFECT</span>
+              {% if sim.active_scenario == 'DEFECT_BURST' %}
+                <span class="fs-role-tag" style="background: #2563EB; color: #FFFFFF; font-weight: 700;">ACTIVE</span>
+              {% endif %}
+            </div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">4. Defect Burst</h3>
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin-bottom: 14px;">
+              Injects sudden spike of <strong>25 scrap defects</strong>, immediately degrading Quality score and logging scrap cost.
+            </p>
+          </div>
+          <form method="POST" action="{% url 'controller_scenario_apply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <input type="hidden" name="scenario_key" value="DEFECT_BURST">
+            <button type="submit" class="fs-btn fs-btn-secondary" style="width: 100%; font-size: 12px;">
+              Inject Defect Burst
+            </button>
+          </form>
+        </div>
+
+        <!-- Scenario 5: Golden Run (Target 95% OEE) -->
+        <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; background: {% if sim.active_scenario == 'GOLDEN_RUN' %}#ECFDF5; border-color: #10B981;{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">WORLD CLASS OEE</span>
+              {% if sim.active_scenario == 'GOLDEN_RUN' %}
+                <span class="fs-role-tag" style="background: #10B981; color: #FFFFFF; font-weight: 700;">ACTIVE</span>
+              {% endif %}
+            </div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">5. Golden Run (~95% OEE)</h3>
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin-bottom: 14px;">
+              Restores all assets to 100% nameplate speed, zero stoppages, and zero defects (Targeting ~95% OEE).
+            </p>
+          </div>
+          <form method="POST" action="{% url 'controller_scenario_apply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="line_id" value="{{ selected_line.id }}">
+            <input type="hidden" name="scenario_key" value="GOLDEN_RUN">
+            <button type="submit" class="fs-btn fs-btn-primary" style="width: 100%; font-size: 12px; background: #16A34A; border-color: #16A34A;">
+              Restore Golden Run
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 2: Live ISO 22400 OEE & Calculation Engine Gauges -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
+      
+      <!-- OEE Metrics Card -->
+      <div class="fs-table-card" style="padding: 24px;">
+        <h2 style="font-size: 14px; font-weight: 700; color: #1E293B; text-transform: uppercase; margin-bottom: 16px;">
+          {% if is_rtl %}مؤشرات الأداء الشامل OEE (معيار ISO 22400){% else %}Live Line OEE (ISO 22400 Standard){% endif %}
+        </h2>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center; margin-bottom: 20px;">
+          <div style="padding: 12px 6px; background: #F8FAFC; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">AVAILABILITY</div>
+            <div class="font-mono" style="font-size: 20px; font-weight: 700; color: #0F172A; margin-top: 4px;">
+              {{ oee.availability|default:"-" }}%
+            </div>
+          </div>
+          <div style="padding: 12px 6px; background: #F8FAFC; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">PERFORMANCE</div>
+            <div class="font-mono" style="font-size: 20px; font-weight: 700; color: #0F172A; margin-top: 4px;">
+              {{ oee.performance|default:"-" }}%
+            </div>
+          </div>
+          <div style="padding: 12px 6px; background: #F8FAFC; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">QUALITY</div>
+            <div class="font-mono" style="font-size: 20px; font-weight: 700; color: #0F172A; margin-top: 4px;">
+              {{ oee.quality|default:"-" }}%
+            </div>
+          </div>
+          <div style="padding: 12px 6px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: #1D4ED8;">OVERALL OEE</div>
+            <div class="font-mono" style="font-size: 22px; font-weight: 700; color: #1D4ED8; margin-top: 4px;">
+              {{ oee.oee|default:"-" }}%
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 12px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 12px;">
+          Governed by Bottleneck: <strong class="font-mono" style="color: #92400E;">{{ oee.bottleneck_code }}</strong> &bull; Total Units: <strong class="font-mono">{{ oee.total_units }}</strong> (Scrap: {{ oee.scrap_units }})
+        </div>
+      </div>
+
+      <!-- Financial Loss Costing Card -->
+      <div class="fs-table-card" style="padding: 24px;">
+        <h2 style="font-size: 14px; font-weight: 700; color: #1E293B; text-transform: uppercase; margin-bottom: 16px;">
+          {% if is_rtl %}التكلفة المالية للتوقفات والهالك{% else %}Financial Loss Costing (Section 6.4){% endif %}
+        </h2>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; color: #64748B;">ACCUMULATED FINANCIAL LOSS (CURRENT SHIFT):</div>
+          <div class="font-mono" style="font-size: 28px; font-weight: 700; color: #DC2626; margin-top: 4px;">
+            {{ loss_cost.total_loss_cost }} {{ loss_cost.currency }}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; padding: 12px; background: #F8FAFC; border-radius: 6px;">
+          <div>
+            <div style="color: #64748B;">Opportunity Loss:</div>
+            <div class="font-mono" style="font-weight: 700; color: #0F172A;">{{ loss_cost.opportunity_loss }} {{ loss_cost.currency }}</div>
+            <div style="font-size: 11px; color: #94A3B8;">({{ loss_cost.downtime_minutes }} min downtime)</div>
+          </div>
+          <div>
+            <div style="color: #64748B;">Direct Scrap Expense:</div>
+            <div class="font-mono" style="font-weight: 700; color: #0F172A;">{{ loss_cost.direct_scrap_loss }} {{ loss_cost.currency }}</div>
+            <div style="font-size: 11px; color: #94A3B8;">({{ loss_cost.scrap_units }} rejected pieces)</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section 3: Machine Assets Telemetry Override Matrix -->
+    <div class="fs-table-card">
+      <div style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 15px; font-weight: 700; color: #1E293B;">
+          {% if is_rtl %}مصفوفة الماكينات والتحكم اليدوي في متغيرات الحساسات{% else %}Line Assets & Manual Sensor Override Matrix{% endif %}
+        </h2>
+        <span style="font-size: 12px; color: #64748B;">Live Asset Count: <strong>{{ machines_data|length }}</strong></span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="fs-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">SEQ</th>
+              <th style="width: 140px;">MACHINE</th>
+              <th>NAME</th>
+              <th>STATE</th>
+              <th>SPEED (CPM)</th>
+              <th>VIBRATION</th>
+              <th>TEMPERATURE</th>
+              <th>PULSES</th>
+              <th style="text-align: right;">MANUAL OVERRIDE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in machines_data %}
+              <tr>
+                <td class="font-mono" style="font-weight: 700; color: #475569;">#{{ item.machine.sequence_order }}</td>
+                <td class="font-mono" style="font-weight: 700; color: #0F172A;">
+                  {{ item.machine.code }}
+                  {% if item.machine.is_bottleneck %}
+                    <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-size: 9px;">BN</span>
+                  {% endif %}
+                </td>
+                <td style="font-weight: 600; color: #1E293B;">{{ item.machine.name }}</td>
+                <td>
+                  <span class="fs-role-tag" style="background: {{ item.state.status_color }}15; color: {{ item.state.status_color }}; border: 1px solid {{ item.state.status_color }}; font-weight: 700;">
+                    {{ item.state.state_code }}
+                  </span>
+                </td>
+                <td class="font-mono" style="font-weight: 700; color: #2563EB;">{{ item.state.current_speed_cpm }} CPM</td>
+                <td class="font-mono">{{ item.state.vibration_rms }} mm/s</td>
+                <td class="font-mono">{{ item.state.temperature_c }} &deg;C</td>
+                <td class="font-mono" style="font-weight: 600;">{{ item.state.shift_pulse_count }}</td>
+                <td style="text-align: right;">
+                  <button type="button" class="fs-btn-action" onclick="openOverrideModal('{{ item.machine.id }}', '{{ item.machine.code }}', '{{ item.machine.name|escapejs }}', '{{ item.state.state_code }}', '{{ item.state.current_speed_cpm }}', '{{ item.state.vibration_rms }}', '{{ item.state.temperature_c }}')">
+                    {% trans "Override" %}
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  {% endif %}
 
 </div>
+
+<!-- Modal: Machine Telemetry Override -->
+<div id="overrideModal" class="fs-modal-backdrop" style="display: none;">
+  <div class="fs-modal-card" style="max-width: 500px;">
+    <div class="fs-modal-header">
+      <h2 class="fs-modal-title">{% if is_rtl %}التحكم اليدوي في متغيرات الماكينة{% else %}Manual Telemetry Override{% endif %}</h2>
+      <button type="button" class="fs-modal-close" onclick="closeOverrideModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'controller_override_machine' %}">
+      {% csrf_token %}
+      <input type="hidden" id="ovr_mach_id" name="machine_id">
+
+      <div class="fs-modal-body">
+        <div style="padding: 12px; background: #F8FAFC; border-radius: 6px; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: #64748B;">Target Machine:</div>
+          <div style="font-weight: 700; color: #0F172A; margin-top: 2px;">
+            <span id="ovr_mach_code" class="font-mono">CODE</span> &ndash; <span id="ovr_mach_name">NAME</span>
+          </div>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="ovr_state">Machine State *</label>
+          <select id="ovr_state" name="state_code" class="fs-select">
+            <option value="RUNNING">RUNNING</option>
+            <option value="UNPLANNED_DOWNTIME">UNPLANNED_DOWNTIME (Fault)</option>
+            <option value="PLANNED_DOWNTIME">PLANNED_DOWNTIME (CIP / Setup)</option>
+            <option value="CHANGEOVER">CHANGEOVER (SMED)</option>
+            <option value="MICRO_STOP">MICRO_STOP (< 180s)</option>
+            <option value="BLOCKED">BLOCKED (Conveyor Full)</option>
+            <option value="STARVED">STARVED (Buffer Empty)</option>
+            <option value="NO_DATA">NO_DATA (Disconnected)</option>
+          </select>
+        </div>
+
+        <div class="fs-form-group">
+          <label class="fs-label" for="ovr_speed">Speed (CPM) *</label>
+          <input type="number" step="1.0" id="ovr_speed" name="current_speed_cpm" class="fs-input font-mono" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="fs-form-group">
+            <label class="fs-label" for="ovr_vibe">Vibration (mm/s RMS)</label>
+            <input type="number" step="0.1" id="ovr_vibe" name="vibration_rms" class="fs-input font-mono" required>
+          </div>
+          <div class="fs-form-group">
+            <label class="fs-label" for="ovr_temp">Temperature (&deg;C)</label>
+            <input type="number" step="0.5" id="ovr_temp" name="temperature_c" class="fs-input font-mono" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="fs-modal-footer">
+        <button type="button" class="fs-btn fs-btn-secondary" onclick="closeOverrideModal()">{% trans "Cancel" %}</button>
+        <button type="submit" class="fs-btn fs-btn-primary">{% trans "Apply Override" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openOverrideModal(id, code, name, state, speed, vibe, temp) {
+  document.getElementById('ovr_mach_id').value = id;
+  document.getElementById('ovr_mach_code').innerText = code;
+  document.getElementById('ovr_mach_name').innerText = name;
+  document.getElementById('ovr_state').value = state;
+  document.getElementById('ovr_speed').value = speed;
+  document.getElementById('ovr_vibe').value = vibe;
+  document.getElementById('ovr_temp').value = temp;
+  document.getElementById('overrideModal').style.display = 'flex';
+}
+function closeOverrideModal() {
+  document.getElementById('overrideModal').style.display = 'none';
+}
+</script>
 {% endblock %}

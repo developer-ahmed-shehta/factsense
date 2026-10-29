@@ -21,6 +21,7 @@ ROLE_NAV_CONFIG = {
         ('nav_maintenance', 'maintenance_home', False),
         ('nav_reports', 'reports_home', False),
         # More dropdown items
+        ('nav_topology', 'topology', True),
         ('nav_smed', 'smed_home', True),
         ('nav_alerts', 'alerts_home', True),
         ('nav_copilot', 'copilot_home', True),
@@ -47,14 +48,14 @@ ROLE_NAV_CONFIG = {
     ],
     'planner': [
         ('nav_products', 'products_list', False),
+        ('nav_topology', 'topology', False),
+        ('nav_wizard', 'wizard', False),
+        ('nav_rates', 'planning_rates', False),
         ('nav_shifts', 'shifts_home', False),
-        ('nav_reasons', 'planning_reasons', False),
-        ('nav_alerts', 'alerts_home', False),
         ('nav_machines', 'admin_machines', False),
-        ('nav_work_orders', 'work_orders_home', False),
         ('nav_processes', 'planning_processes', False),
-        ('nav_reports', 'reports_home', False),
-        ('nav_history', 'admin_audit', False),
+        ('nav_reasons', 'planning_reasons', False),
+        ('nav_work_orders', 'work_orders_home', False),
     ],
     'supply_chain': [
         ('nav_work_orders', 'work_orders_home', False),
@@ -66,6 +67,7 @@ ROLE_NAV_CONFIG = {
     'manager': [
         ('nav_overview', 'manager_home', False),
         ('nav_floor', 'floor_home', False),
+        ('nav_topology', 'topology', False),
         ('nav_reports', 'reports_home', False),
         # More dropdown items
         ('nav_quality', 'quality_home', True),
@@ -77,9 +79,11 @@ ROLE_NAV_CONFIG = {
         ('nav_users', 'admin_users', False),
         ('nav_roles', 'admin_roles', False),
         ('nav_machines', 'admin_machines', False),
+        ('nav_topology', 'topology', False),
         ('nav_products', 'products_list', False),
         ('nav_settings', 'admin_settings', False),
         # More dropdown items
+        ('nav_wizard', 'wizard', True),
         ('nav_gateways', 'admin_gateways', True),
         ('nav_integrations', 'admin_integrations', True),
         ('nav_audit', 'admin_audit', True),

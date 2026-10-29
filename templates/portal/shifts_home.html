@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if is_rtl %}إدارة الورديات وتسليم المهام{% else %}Shift Management &amp; Handover{% endif %} · {{ BRAND_NAME }}
+{% endblock %}
+
+{% block content %}
+<div class="fs-shifts-page" style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Header & Line Switcher -->
+  <div class="fs-page-header" style="background: #FFFFFF; padding: 20px 24px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <span class="fs-role-tag" style="background: #16A34A; color: #FFFFFF; font-weight: 700;">
+          SHIFT OPERATIONS
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0; color: #0F172A;">
+          {% if is_rtl %}إدارة الورديات ومرشد تسليم المهام (3-Step Guided Handover Wizard){% else %}Shift Schedules &amp; 3-Step Guided Handover Wizard{% endif %}
+        </h1>
+      </div>
+      <p class="fs-page-subtitle" style="color: #64748B; margin: 0;">
+        Review shift output metrics, audit open maintenance tickets, and complete digital handover sign-off.
+      </p>
+    </div>
+
+    <!-- Line Selector -->
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <form method="GET" action="" style="display: inline-flex; align-items: center; gap: 8px; margin: 0;">
+        <label for="lineSelect" style="font-size: 12px; font-weight: 700; color: #64748B;">LINE:</label>
+        <select name="line" id="lineSelect" class="fs-form-select" onchange="this.form.submit()" style="min-width: 180px; font-size: 13px; font-weight: 600;">
+          {% for l in lines %}
+            <option value="{{ l.code }}" {% if selected_line and selected_line.code == l.code %}selected{% endif %}>
+              {{ l.name }} ({{ l.code }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <a href="{% url 'floor_home' %}?line={{ selected_line.code }}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}صالة الإنتاج{% else %}Live Floor Monitor{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Section 1: Shift Definitions & Breaks Table -->
+  <div class="fs-table-card" style="padding: 20px 24px; margin-bottom: 24px;">
+    <h2 style="font-size: 15px; font-weight: 700; color: #0F172A; text-transform: uppercase; margin-bottom: 12px;">
+      {% if is_rtl %}جدول الورديات والاستراحات المعتمدة (ISO 22400 Time Basis){% else %}Approved Shift Windows &amp; Planned Breaks (ISO 22400){% endif %}
+    </h2>
+    <table class="fs-table" style="font-size: 13px;">
+      <thead>
+        <tr>
+          <th>Shift Code</th>
+          <th>Shift Name</th>
+          <th>Window (Start &ndash; End)</th>
+          <th>Total Window</th>
+          <th>Unpaid Break Deductions</th>
+          <th>Planned Production Time (PPT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in shifts %}
+          <tr>
+            <td class="font-mono" style="font-weight: 700;">{{ s.code }}</td>
+            <td style="font-weight: 600;">{{ s.name }}</td>
+            <td class="font-mono">{{ s.start_time|time:"H:i" }} &ndash; {{ s.end_time|time:"H:i" }}</td>
+            <td class="font-mono">{{ s.total_scheduled_minutes }} min</td>
+            <td class="font-mono" style="color: #DC2626;">-{{ s.unpaid_break_minutes }} min</td>
+            <td class="font-mono" style="font-weight: 800; color: #16A34A;">{{ s.planned_operating_minutes }} min</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" style="text-align: center; color: #64748B;">No shifts configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if selected_line and handover %}
+
+    <!-- Section 2: GUIDED 3-STEP SHIFT HANDOVER WIZARD -->
+    <div class="fs-table-card" style="padding: 24px; margin-bottom: 24px; border-top: 6px solid #16A34A;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="fs-role-tag" style="background: {% if handover.status == 'LOCKED' %}#10B981{% else %}#F59E0B{% endif %}; color: #FFFFFF; font-weight: 800; font-size: 11px;">
+              {{ handover.get_status_display|upper }}
+            </span>
+            <h2 style="font-size: 18px; font-weight: 800; color: #0F172A; margin: 0;">
+              {% if is_rtl %}مرشد تسليم الوردية الموجه (3-Step Shift Handover Wizard){% else %}Guided 3-Step Shift Handover Checklist{% endif %}
+            </h2>
+          </div>
+          <div style="font-size: 13px; color: #64748B; margin-top: 4px;">
+            Line: <strong>{{ selected_line.name }}</strong> &bull; Shift: <strong>{{ handover.shift.name }}</strong> &bull; Date: <strong>{{ handover.date }}</strong>
+          </div>
+        </div>
+
+        {% if handover.status == 'LOCKED' %}
+          <div style="text-align: right; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 8px 16px; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: #065F46;">DIGITALLY SIGNED &amp; LOCKED</div>
+            <div style="font-size: 12px; color: #047857;">Signed at {{ handover.signed_at|date:"Y-m-d H:i" }}</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Step 1: Performance Metrics Review -->
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-size: 13px; font-weight: 800; color: #1E293B; text-transform: uppercase; margin-bottom: 12px;">
+          STEP 1: SHIFT PERFORMANCE &amp; PRODUCTION VERIFICATION
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; text-align: center;">
+          <div style="background: #FFFFFF; padding: 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">TOTAL OUTPUT</div>
+            <div class="font-mono" style="font-size: 24px; font-weight: 800; color: #0F172A; margin-top: 4px;">
+              {{ handover.total_output_units }}
+            </div>
+          </div>
+          <div style="background: #FFFFFF; padding: 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">TOTAL SCRAP DEFECTS</div>
+            <div class="font-mono" style="font-size: 24px; font-weight: 800; color: #DC2626; margin-top: 4px;">
+              {{ handover.total_scrap_units }}
+            </div>
+          </div>
+          <div style="background: #FFFFFF; padding: 12px; border-radius: 6px; border: 1px solid #CBD5E1;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B;">TOTAL DOWNTIME</div>
+            <div class="font-mono" style="font-size: 24px; font-weight: 800; color: #B45309; margin-top: 4px;">
+              {{ handover.total_downtime_minutes }} min
+            </div>
+          </div>
+          <div style="background: #FFFFFF; padding: 12px; border-radius: 6px; border: 1px solid #BFDBFE;">
+            <div style="font-size: 11px; font-weight: 800; color: #1D4ED8;">SHIFT OEE</div>
+            <div class="font-mono" style="font-size: 24px; font-weight: 800; color: #1D4ED8; margin-top: 4px;">
+              {{ handover.shift_oee }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Open Issues & Maintenance Tickets Audit -->
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 800; color: #1E293B; text-transform: uppercase;">
+            STEP 2: OPEN ISSUES &amp; UNRESOLVED BREAKDOWN TICKETS AUDIT
+          </div>
+          <span class="fs-role-tag" style="background: {% if open_tickets %}#FEE2E2; color: #991B1B;{% else %}#DCFCE7; color: #166534;{% endif %} font-weight: 700;">
+            {{ open_tickets.count }} Unresolved Tickets
+          </span>
+        </div>
+
+        {% if open_tickets %}
+          <div style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: #991B1B; margin-bottom: 6px;">
+              Notice: The following open tickets must be acknowledged and carried forward to the incoming shift:
+            </div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #475569;">
+              {% for ot in open_tickets %}
+                <li><strong>{{ ot.ticket_number }}</strong> &bull; {{ ot.machine.code }}: {{ ot.title }} [{{ ot.get_status_display }}]</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% else %}
+          <div style="font-size: 12px; color: #166534; background: #DCFCE7; padding: 10px; border-radius: 6px; font-weight: 600;">
+            All maintenance tickets for this shift are resolved. Zero carried-forward equipment outages.
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Step 3: Outgoing & Incoming Supervisor Digital Sign-off -->
+      {% if handover.status != 'LOCKED' %}
+        <form method="POST" action="{% url 'shift_handover_submit_action' %}">
+          {% csrf_token %}
+          <input type="hidden" name="handover_id" value="{{ handover.id }}">
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin-bottom: 20px;">
+            <div style="font-size: 13px; font-weight: 800; color: #1E293B; text-transform: uppercase; margin-bottom: 12px;">
+              STEP 3: SHIFT NARRATIVE &amp; DIGITAL SIGN-OFF
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="fs-form-label">PRODUCTION PACING &amp; OUTPUT REMARKS</label>
+                <textarea name="production_summary" class="fs-form-input" rows="2" placeholder="e.g. Achieved 94% of shift quota. Minor speed reduction on Capper due to cap supply delivery delay." style="padding: 10px;"></textarea>
+              </div>
+              <div>
+                <label class="fs-form-label">SAFETY &amp; 5S ENVIRONMENT REMARKS</label>
+                <textarea name="safety_incidents" class="fs-form-input" rows="2" style="padding: 10px;">Zero safety incidents or near-misses reported during shift.</textarea>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="fs-form-label">EQUIPMENT &amp; MAINTENANCE HANDOFF NOTES</label>
+                <textarea name="maintenance_notes" class="fs-form-input" rows="2" placeholder="e.g. Monitor Blow Molder heater zone 3 temperature in evening shift." style="padding: 10px;"></textarea>
+              </div>
+              <div>
+                <label class="fs-form-label">QUALITY &amp; WEIGHT SAMPLING NOTES</label>
+                <textarea name="quality_notes" class="fs-form-input" rows="2" placeholder="e.g. Fill weights centered at 500.4g. Checkweigher verified with standard weights." style="padding: 10px;"></textarea>
+              </div>
+            </div>
+
+            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 12px; font-size: 12px; color: #1E40AF; margin-bottom: 16px;">
+              Signing this handover digitally certifies all physical bin counts match system records, open tickets are audited, and locks the shift instance against retroactive edits.
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+              <button type="submit" class="fs-btn fs-btn-primary" style="min-height: 48px; font-size: 15px; font-weight: 700; background: #16A34A; border-color: #16A34A; padding: 0 32px;">
+                {% if is_rtl %}التوقيع الإلكتروني وقفل الوردية (Sign &amp; Lock Shift){% else %}Digitally Sign &amp; Lock Shift Handover{% endif %}
+              </button>
+            </div>
+          </div>
+        </form>
+      {% endif %}
+
+    </div>
+
+    <!-- Section 3: Recent Locked Handover Reports -->
+    <div class="fs-table-card" style="padding: 24px;">
+      <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 16px;">
+        {% if is_rtl %}سجل تقارير تسليم الورديات المعتمدة{% else %}Historical Locked Shift Handover Log{% endif %}
+      </h3>
+
+      <table class="fs-table" style="font-size: 13px;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>Output</th>
+            <th>Scrap</th>
+            <th>Downtime</th>
+            <th>Shift OEE</th>
+            <th>Outgoing Supervisor</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in recent_handovers %}
+            <tr>
+              <td class="font-mono">{{ h.date }}</td>
+              <td style="font-weight: 700;">{{ h.shift.name }}</td>
+              <td class="font-mono">{{ h.total_output_units }}</td>
+              <td class="font-mono" style="color: #DC2626;">{{ h.total_scrap_units }}</td>
+              <td class="font-mono">{{ h.total_downtime_minutes }} min</td>
+              <td class="font-mono" style="font-weight: 800; color: #16A34A;">{{ h.shift_oee }}%</td>
+              <td>{{ h.outgoing_supervisor.get_display_name|default:"Admin" }}</td>
+              <td><span class="fs-role-tag" style="background: #DCFCE7; color: #166534; font-weight: 700;">LOCKED</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" style="text-align: center; color: #64748B;">No locked historical handovers recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}
+

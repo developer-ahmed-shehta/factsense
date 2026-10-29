@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Title Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>Planning & Supply Chain</span>
+                <span>/</span>
+                <a href="{% url 'work_orders_home' %}" class="hover:text-emerald-600">Work Orders</a>
+                <span>/</span>
+                <span class="text-emerald-600 font-mono">{{ order.order_number }}</span>
+            </div>
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight font-mono">
+                    {{ order.order_number }}
+                </h1>
+                <!-- Status Badge -->
+                {% if order.status == 'IN_PROGRESS' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 animate-pulse">
+                    In Progress
+                </span>
+                {% elif order.status == 'RELEASED' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    Released to Floor
+                </span>
+                {% elif order.status == 'COMPLETED' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Completed
+                </span>
+                {% elif order.status == 'SHORT_CLOSED' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Short-Closed
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ order.get_status_display }}
+                </span>
+                {% endif %}
+
+                <!-- Priority Badge -->
+                {% if order.priority == 'URGENT' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Urgent Priority</span>
+                {% elif order.priority == 'HIGH' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">High Priority</span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ order.product.name }} ({{ order.product.code }}) on <strong>{{ order.line.name }}</strong> | Batch Lot: <span class="font-mono">{{ order.lot_number|default:"N/A" }}</span>
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-4 md:mt-0 flex items-center space-x-2 rtl:space-x-reverse">
+            {% if order.can_release %}
+            <form method="post" action="{% url 'work_order_action' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="release">
+                <button type="submit" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-purple-600 text-white hover:bg-purple-700 shadow-sm">
+                    Release to Floor
+                </button>
+            </form>
+            {% endif %}
+
+            {% if order.can_start %}
+            <form method="post" action="{% url 'work_order_action' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="start">
+                <button type="submit" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm">
+                    Start Production
+                </button>
+            </form>
+            {% endif %}
+
+            {% if order.can_pause %}
+            <form method="post" action="{% url 'work_order_action' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="pause">
+                <button type="submit" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-500 text-white hover:bg-amber-600 shadow-sm">
+                    Pause Order
+                </button>
+            </form>
+            {% endif %}
+
+            {% if order.can_resume %}
+            <form method="post" action="{% url 'work_order_action' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="resume">
+                <button type="submit" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm">
+                    Resume Order
+                </button>
+            </form>
+            {% endif %}
+
+            {% if order.can_complete %}
+            <form method="post" action="{% url 'work_order_action' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete">
+                <button type="submit" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-800 text-white hover:bg-gray-900 shadow-sm">
+                    Complete Order
+                </button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'work_orders_home' %}" class="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-50">
+                Back to Dispatch
+            </a>
+        </div>
+    </div>
+
+    <!-- Production Progress Summary Card -->
+    <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6 shadow-sm">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            <div>
+                <div class="text-xs font-medium text-gray-500 uppercase">Target Quantity</div>
+                <div class="text-xl font-bold font-mono text-gray-900 mt-1">{{ order.target_quantity|floatformat:0 }} pcs</div>
+            </div>
+            <div>
+                <div class="text-xs font-medium text-emerald-700 uppercase">Produced Output</div>
+                <div class="text-xl font-bold font-mono text-emerald-700 mt-1">{{ order.produced_quantity|floatformat:0 }} pcs</div>
+            </div>
+            <div>
+                <div class="text-xs font-medium text-blue-700 uppercase">Good Pieces</div>
+                <div class="text-xl font-bold font-mono text-blue-700 mt-1">{{ order.good_pieces|floatformat:0 }} pcs</div>
+            </div>
+            <div>
+                <div class="text-xs font-medium text-red-700 uppercase">Scrap Rejects</div>
+                <div class="text-xl font-bold font-mono text-red-700 mt-1">{{ order.scrap_quantity|floatformat:0 }} pcs</div>
+            </div>
+            <div>
+                <div class="text-xs font-medium text-gray-500 uppercase">Remaining Balance</div>
+                <div class="text-xl font-bold font-mono text-gray-700 mt-1">{{ order.remaining_quantity|floatformat:0 }} pcs</div>
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <div class="flex justify-between text-xs font-mono text-gray-600">
+                <span>Progress: {{ order.produced_quantity }} / {{ order.target_quantity }} units</span>
+                <span class="font-bold">{{ order.progress_percent }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div class="bg-emerald-600 h-2 rounded-full" style="width: {{ order.progress_percent }}%;"></div>
+            </div>
+        </div>
+
+        {% if order.short_close_reason %}
+        <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-800">
+            <strong>Short-Close Justification:</strong> {{ order.short_close_reason }} (Logged at {{ order.actual_end|date:'Y-m-d H:i' }})
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Process Routing Stages Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Bill of Operations / Sequential Process Routing
+            </h2>
+            <span class="text-xs text-gray-500">
+                {{ stages.count }} Stage Process Sequence
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Seq</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Process Stage</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Target</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Completed</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Scrap</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Progress</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for st in stages %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono font-bold text-gray-900">
+                            {{ st.sequence_order }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-bold text-gray-900">{{ st.process.name }}</div>
+                            <div class="text-xs text-gray-500 font-mono">{{ st.process.code }}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900">
+                            {{ st.target_quantity|floatformat:0 }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-emerald-600 font-bold">
+                            {{ st.completed_quantity|floatformat:0 }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-red-600">
+                            {{ st.scrap_quantity|floatformat:0 }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap" style="min-width: 140px;">
+                            <div class="flex items-center justify-between text-xs font-mono text-gray-600 mb-1">
+                                <span>{{ st.progress_percent }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ st.progress_percent }}%;"></div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if st.status == 'COMPLETED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                                Completed
+                            </span>
+                            {% elif st.status == 'IN_PROGRESS' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 animate-pulse">
+                                In Progress
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
+                                Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                            No routing stages configured.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bill of Materials Components Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Component Bill of Materials (BOM) & Staging
+            </h2>
+            <span class="text-xs text-gray-500">
+                Component readiness checklist
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Material Code</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Component Name</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Required</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Staged</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Lot Traceability</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for m in materials %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-600 font-bold">
+                            {{ m.material_code }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                            {{ m.name }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900 font-medium">
+                            {{ m.required_quantity|floatformat:0 }} {{ m.unit_of_measure }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-emerald-700 font-bold">
+                            {{ m.staged_quantity|floatformat:0 }} ({{ m.staged_percent }}%)
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">
+                            {{ m.lot_number|default:"-" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if m.status == 'STAGED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">Fully Staged</span>
+                            {% elif m.status == 'PARTIALLY_STAGED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Partially Staged</span>
+                            {% elif m.status == 'SHORTAGE' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">Shortage</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">No BOM materials linked.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

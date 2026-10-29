@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Title Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}تخطيط الإنتاج وسلاسل الإمداد{% else %}Planning & Supply Chain{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}أوامر العمل{% else %}Work Orders{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                لوحة التحكم المركزية لتتبع أوامر العمل المزامنة من ERP، وإطلاقها لخطوط الإنتاج ومتابعة الإنجاز المرحلي.
+                {% else %}
+                Consolidated execution lifecycle, process stage routing, and shop-floor production scheduling.
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-3 rtl:space-x-reverse">
+            <button onclick="document.getElementById('newWorkOrderModal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}أمر عمل جديد{% else %}New Work Order{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "planning/partials/nav_tabs.html" with active_tab="dispatch" %}
+
+    <!-- Top KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {% if request.LANGUAGE_CODE == 'ar' %}إجمالي الأوامر{% else %}Total Orders{% endif %}
+            </div>
+            <div class="text-2xl font-bold text-gray-900 font-mono mt-1">{{ total_orders }}</div>
+            <div class="text-xs text-gray-400 mt-1">{% if request.LANGUAGE_CODE == 'ar' %}جميع الحالات المسجلة{% else %}All recorded orders{% endif %}</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 border-l-emerald-500">
+            <div class="text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                {% if request.LANGUAGE_CODE == 'ar' %}نشط على خطوط الإنتاج{% else %}Active on Floor{% endif %}
+            </div>
+            <div class="text-2xl font-bold text-emerald-700 font-mono mt-1">{{ active_orders }}</div>
+            <div class="text-xs text-emerald-600 mt-1">{% if request.LANGUAGE_CODE == 'ar' %}مطلق أو قيد التشغيل الفعلي{% else %}Released or In Progress{% endif %}</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 border-l-blue-500">
+            <div class="text-xs font-medium text-blue-700 uppercase tracking-wider">
+                {% if request.LANGUAGE_CODE == 'ar' %}أوامر مكتملة{% else %}Completed Orders{% endif %}
+            </div>
+            <div class="text-2xl font-bold text-blue-700 font-mono mt-1">{{ completed_orders }}</div>
+            <div class="text-xs text-blue-600 mt-1">{% if request.LANGUAGE_CODE == 'ar' %}تم إنتاج الكمية المستهدفة{% else %}Target units reached{% endif %}</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 border-l-amber-500">
+            <div class="text-xs font-medium text-amber-700 uppercase tracking-wider">
+                {% if request.LANGUAGE_CODE == 'ar' %}إغلاق مبكر مبرر{% else %}Short-Closed{% endif %}
+            </div>
+            <div class="text-2xl font-bold text-amber-700 font-mono mt-1">{{ short_closed_orders }}</div>
+            <div class="text-xs text-amber-600 mt-1">{% if request.LANGUAGE_CODE == 'ar' %}أغلقت بسبب عجز أو عطل{% else %}Closed with justification{% endif %}</div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    {% if request.LANGUAGE_CODE == 'ar' %}بحث برقم الأمر{% else %}Search Order Number{% endif %}
+                </label>
+                <input type="text" name="q" value="{{ search_query }}" placeholder="WO-..."
+                       class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    {% if request.LANGUAGE_CODE == 'ar' %}خط الإنتاج{% else %}Production Line{% endif %}
+                </label>
+                <select name="line" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">{% if request.LANGUAGE_CODE == 'ar' %}جميع الخطوط{% else %}All Lines{% endif %}</option>
+                    {% for l in lines %}
+                    <option value="{{ l.id }}" {% if selected_line_id == l.id|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">
+                    {% if request.LANGUAGE_CODE == 'ar' %}الحالة{% else %}Status{% endif %}
+                </label>
+                <select name="status" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">{% if request.LANGUAGE_CODE == 'ar' %}جميع الحالات{% else %}All Statuses{% endif %}</option>
+                    <option value="PLANNED" {% if selected_status == 'PLANNED' %}selected{% endif %}>Planned</option>
+                    <option value="RELEASED" {% if selected_status == 'RELEASED' %}selected{% endif %}>Released to Floor</option>
+                    <option value="IN_PROGRESS" {% if selected_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                    <option value="PAUSED" {% if selected_status == 'PAUSED' %}selected{% endif %}>Paused</option>
+                    <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                    <option value="SHORT_CLOSED" {% if selected_status == 'SHORT_CLOSED' %}selected{% endif %}>Short-Closed</option>
+                </select>
+            </div>
+            <div class="flex items-end space-x-2 rtl:space-x-reverse">
+                <button type="submit" class="w-full inline-flex justify-center items-center py-2 px-4 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-700">
+                    {% if request.LANGUAGE_CODE == 'ar' %}تطبيق الفلترة{% else %}Filter{% endif %}
+                </button>
+                <a href="{% url 'work_orders_home' %}" class="py-2 px-3 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 text-center">
+                    {% if request.LANGUAGE_CODE == 'ar' %}إعادة ضبط{% else %}Reset{% endif %}
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Orders Table Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Order No / ERP ID</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Product / SKU</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Line</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Lot Number</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Target</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Progress</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-right rtl:text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for o in orders %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-bold text-gray-900 font-mono">
+                                <a href="{% url 'work_order_detail' o.id %}" class="hover:text-emerald-600 hover:underline">
+                                    {{ o.order_number }}
+                                </a>
+                            </div>
+                            {% if o.external_erp_id %}
+                            <div class="text-xs text-gray-500 font-mono">ERP: {{ o.external_erp_id }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-medium text-gray-900">{{ o.product.name }}</div>
+                            <div class="text-xs text-gray-500 font-mono">{{ o.product.code }}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">
+                            {{ o.line.name }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
+                            {{ o.lot_number|default:"-" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900 font-medium">
+                            {{ o.target_quantity|floatformat:0 }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap" style="min-width: 140px;">
+                            <div class="flex items-center justify-between text-xs font-mono text-gray-600 mb-1">
+                                <span>{{ o.produced_quantity }}</span>
+                                <span class="font-bold">{{ o.progress_percent }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ o.progress_percent }}%;"></div>
+                            </div>
+                            {% if o.scrap_quantity > 0 %}
+                            <div class="text-[10px] text-red-500 font-mono mt-0.5">Scrap: {{ o.scrap_quantity }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if o.priority == 'URGENT' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">Urgent</span>
+                            {% elif o.priority == 'HIGH' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">High</span>
+                            {% elif o.priority == 'NORMAL' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Normal</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">Low</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if o.status == 'IN_PROGRESS' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 animate-pulse">
+                                In Progress
+                            </span>
+                            {% elif o.status == 'RELEASED' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                Released
+                            </span>
+                            {% elif o.status == 'PLANNED' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Planned
+                            </span>
+                            {% elif o.status == 'PAUSED' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                Paused
+                            </span>
+                            {% elif o.status == 'COMPLETED' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Completed
+                            </span>
+                            {% elif o.status == 'SHORT_CLOSED' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Short-Closed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                {{ o.get_status_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right rtl:text-left space-x-1 rtl:space-x-reverse">
+                            <!-- Lifecycle Permitted Actions -->
+                            {% if o.can_release %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="release">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200">
+                                    Release
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if o.can_start %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="start">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                                    Start
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if o.can_pause %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="pause">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200">
+                                    Pause
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if o.can_resume %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="resume">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                                    Resume
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if o.can_complete %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="complete">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-300">
+                                    Complete
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if o.can_short_close %}
+                            <button type="button" 
+                                    onclick="openShortCloseModal('{{ o.id }}', '{{ o.order_number }}')"
+                                    class="px-2 py-1 text-xs font-semibold rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200">
+                                Short-Close
+                            </button>
+                            {% endif %}
+
+                            {% if o.status == 'COMPLETED' %}
+                            <form method="post" action="{% url 'work_order_action' o.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="export_erp">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200">
+                                    ERP Feedback
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <a href="{% url 'work_order_detail' o.id %}" class="px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-200 rounded">
+                                Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                            {% if request.LANGUAGE_CODE == 'ar' %}لا توجد أوامر عمل مطابقة للفلترة الحالية.{% else %}No work orders found matching the filter criteria.{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- New Work Order Modal -->
+<div id="newWorkOrderModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900">
+                {% if request.LANGUAGE_CODE == 'ar' %}إنشاء أمر عمل جديد{% else %}Create New Work Order{% endif %}
+            </h3>
+            <button onclick="document.getElementById('newWorkOrderModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'work_order_create' %}" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Order Number (Leave blank to auto-generate)</label>
+                <input type="text" name="order_number" placeholder="WO-2026-..." class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Product SKU *</label>
+                    <select name="product_id" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        {% for p in products %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Line *</label>
+                    <select name="line_id" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        {% for l in lines %}
+                        <option value="{{ l.id }}">{{ l.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Target Quantity *</label>
+                    <input type="number" name="target_quantity" value="10000" min="1" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+                    <select name="priority" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="NORMAL" selected>Normal</option>
+                        <option value="HIGH">High</option>
+                        <option value="URGENT">Urgent</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Planned Start</label>
+                    <input type="datetime-local" name="planned_start" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Planned End</label>
+                    <input type="datetime-local" name="planned_end" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Batch / Lot Number</label>
+                <input type="text" name="lot_number" placeholder="LOT-..." class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Execution Notes</label>
+                <textarea name="notes" rows="2" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="Optional notes for shop-floor supervisor..."></textarea>
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('newWorkOrderModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 shadow-sm">
+                    Create Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Short-Close Justification Modal -->
+<div id="shortCloseModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-red-700">
+                Short-Close Work Order
+            </h3>
+            <button onclick="document.getElementById('shortCloseModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="shortCloseForm" method="post" action="" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="short_close">
+            <p class="text-sm text-gray-600">
+                You are short-closing order <span id="shortCloseOrderNumber" class="font-bold text-gray-900 font-mono"></span> before reaching the target quantity.
+                A formal justification reason is required for audit reconciliation.
+            </p>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Reason Category</label>
+                <select id="shortClosePreset" onchange="document.getElementById('shortCloseReasonText').value = this.value" class="block w-full text-sm border-gray-300 rounded-md shadow-sm mb-2">
+                    <option value="">Select pre-defined justification...</option>
+                    <option value="Raw material component shortage (preforms/caps exhausted)">Raw material component shortage</option>
+                    <option value="Customer requested order cancellation / reduction">Customer cancellation / reduction</option>
+                    <option value="Extended mechanical equipment breakdown on bottleneck machine">Extended equipment breakdown</option>
+                    <option value="Shift end time expired without scheduling overtime">Shift window expired</option>
+                </select>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Mandatory Justification Explanation *</label>
+                <textarea id="shortCloseReasonText" name="short_close_reason" required rows="3" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500" placeholder="State clear operational reason..."></textarea>
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('shortCloseModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 shadow-sm">
+                    Confirm Short-Close
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openShortCloseModal(orderId, orderNumber) {
+    document.getElementById('shortCloseOrderNumber').innerText = orderNumber;
+    document.getElementById('shortCloseForm').action = "/work-orders/" + orderId + "/action/";
+    document.getElementById('shortCloseModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}
+

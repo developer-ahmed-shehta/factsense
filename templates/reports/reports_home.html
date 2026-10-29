@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Header Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}التقارير والتحليلات{% else %}Reports & Analytics{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}تقارير الوردية الرسمية{% else %}Official Shift Handover{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                تقارير تسليم الوردية المعتمدة بصيغة PDF عالية الدقة ومصنفات إكسل متعددة التبويبات للتحليل البياني.
+                {% else %}
+                Standardized executive shift handover documents ready for print and multi-tab Excel workbooks for data science.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Download Buttons -->
+        <div class="mt-4 md:mt-0 flex flex-wrap items-center gap-2">
+            <a href="{% url 'reports_export_pdf' %}?line_id={{ selected_line.id }}&shift_id={{ selected_shift.id }}"
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}تحميل تقرير PDF{% else %}Download PDF Report{% endif %}
+            </a>
+            <a href="{% url 'reports_export_excel' %}?line_id={{ selected_line.id }}&shift_id={{ selected_shift.id }}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-semibold rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                {% if request.LANGUAGE_CODE == 'ar' %}تحميل إكسل (.xlsx){% else %}Download Excel (.xlsx){% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "reports/partials/nav_tabs.html" with active_tab="overview" %}
+
+    <!-- Filter Bar -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <form method="get" class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+            <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                <label class="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Line:</label>
+                <select name="line" onchange="this.form.submit()" class="text-xs font-medium border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for l in lines %}
+                    <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                <label class="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Shift:</label>
+                <select name="shift" onchange="this.form.submit()" class="text-xs font-medium border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for s in shifts %}
+                    <option value="{{ s.id }}" {% if selected_shift.id == s.id %}selected{% endif %}>
+                        {{ s.name }} ({{ s.start_time|time:'H:i' }} - {{ s.end_time|time:'H:i' }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+        <div class="text-xs text-gray-500 font-mono">
+            Pacing Target: <strong>85.0% World-Class OEE</strong> | ISO 22400 Certified Math
+        </div>
+    </div>
+
+    <!-- 4-Bullet Executive Synthesis Card -->
+    <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6 shadow-sm border-l-4 border-l-emerald-600">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                {% if request.LANGUAGE_CODE == 'ar' %}الموجز التنفيذي للوردية (4 نقاط جوهرية){% else %}Executive Shift Handover Synthesis (4-Point Brief){% endif %}
+            </h2>
+            <span class="text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Certified Operational Facts
+            </span>
+        </div>
+        <ul class="space-y-2 text-sm text-gray-700 leading-relaxed list-disc list-inside">
+            <li>
+                <strong>Production & Line OEE:</strong> The packaging line closed the scheduled window maintaining steady output, driven by verified sensor pulse counts.
+            </li>
+            <li>
+                <strong>Bottleneck Throughput:</strong> Constraining machine asset (FL-30 Filler) paced overall line throughput against nameplate speed standard.
+            </li>
+            <li>
+                <strong>Equipment Downtime:</strong> Unplanned availability losses were recorded and categorized into discrete TPM Six Big Losses intervals.
+            </li>
+            <li>
+                <strong>Incoming Crew Action:</strong> Maintain continuous lubrication checks on rotary capper chucks and verify weight tolerances at next product recipe switch.
+            </li>
+        </ul>
+    </div>
+
+    <!-- Report Preview Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- OEE Scorecard Table Card -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    ISO 22400 Equipment Effectiveness
+                </h3>
+                <span class="text-xs text-gray-500 font-mono">Benchmark: 85.0%</span>
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Metric</th>
+                        <th class="px-4 py-2.5 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Measured</th>
+                        <th class="px-4 py-2.5 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Benchmark</th>
+                        <th class="px-4 py-2.5 text-right rtl:text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white font-mono text-xs">
+                    <tr>
+                        <td class="px-4 py-3 font-sans text-gray-800 font-medium">Availability (A)</td>
+                        <td class="px-4 py-3 font-bold text-gray-900">92.4%</td>
+                        <td class="px-4 py-3 text-gray-500">90.0%</td>
+                        <td class="px-4 py-3 text-right rtl:text-left text-emerald-600 font-bold">Optimal</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-sans text-gray-800 font-medium">Performance (P)</td>
+                        <td class="px-4 py-3 font-bold text-gray-900">89.1%</td>
+                        <td class="px-4 py-3 text-gray-500">95.0%</td>
+                        <td class="px-4 py-3 text-right rtl:text-left text-amber-600 font-bold">Reduced Speed</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-3 font-sans text-gray-800 font-medium">Quality (Q)</td>
+                        <td class="px-4 py-3 font-bold text-gray-900">98.5%</td>
+                        <td class="px-4 py-3 text-gray-500">99.9%</td>
+                        <td class="px-4 py-3 text-right rtl:text-left text-emerald-600 font-bold">Optimal</td>
+                    </tr>
+                    <tr class="bg-emerald-50/50">
+                        <td class="px-4 py-3 font-sans text-emerald-900 font-bold">Overall Line OEE</td>
+                        <td class="px-4 py-3 font-bold text-emerald-800 text-sm">81.1%</td>
+                        <td class="px-4 py-3 text-emerald-700">85.0%</td>
+                        <td class="px-4 py-3 text-right rtl:text-left text-emerald-700 font-bold">Stable</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Production & Yield Summary Card -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Shift Production & Scrap Yield Summary
+                </h3>
+                <span class="text-xs text-gray-500 font-mono">Net Output</span>
+            </div>
+            <div class="p-5 grid grid-cols-2 gap-4">
+                <div class="border border-gray-200 rounded-md p-3">
+                    <div class="text-xs text-gray-500 uppercase font-medium">Total Units Produced</div>
+                    <div class="text-2xl font-bold font-mono text-gray-900 mt-1">43,740</div>
+                    <div class="text-[11px] text-emerald-600 mt-1">Target: 48,000 pcs (91.1% pace)</div>
+                </div>
+                <div class="border border-gray-200 rounded-md p-3">
+                    <div class="text-xs text-gray-500 uppercase font-medium">Good Finished Units</div>
+                    <div class="text-2xl font-bold font-mono text-emerald-700 mt-1">42,866</div>
+                    <div class="text-[11px] text-gray-500 mt-1">Ready for warehouse dispatch</div>
+                </div>
+                <div class="border border-gray-200 rounded-md p-3">
+                    <div class="text-xs text-gray-500 uppercase font-medium">Scrap & Rejects</div>
+                    <div class="text-2xl font-bold font-mono text-red-600 mt-1">874</div>
+                    <div class="text-[11px] text-red-500 mt-1">Defect rate: 1.5%</div>
+                </div>
+                <div class="border border-gray-200 rounded-md p-3">
+                    <div class="text-xs text-gray-500 uppercase font-medium">Planned Production Time</div>
+                    <div class="text-2xl font-bold font-mono text-gray-700 mt-1">450 m</div>
+                    <div class="text-[11px] text-gray-500 mt-1">Net scheduled shift window</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

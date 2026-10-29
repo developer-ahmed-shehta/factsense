@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Title Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}تخطيط الإنتاج وسلاسل الإمداد{% else %}Planning & Supply Chain{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}مزامنة ERP وطابور النزاعات{% else %}ERP Synchronization{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                المزامنة ثنائية الاتجاه مع نظام Odoo / ERP، التحقق من التكرار، وطابور فض نزاعات أوامر العمل.
+                {% else %}
+                Bidirectional manufacturing order synchronization with upstream ERP, idempotency checks, and conflict resolution.
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex items-center space-x-2 rtl:space-x-reverse">
+            <!-- Trigger Real Inbound Sync -->
+            <form method="post" action="{% url 'work_orders_erp_trigger_sync' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700">
+                    <svg class="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    {% if request.LANGUAGE_CODE == 'ar' %}بدء المزامنة الفورية{% else %}Trigger ERP Sync Now{% endif %}
+                </button>
+            </form>
+
+            <!-- Trigger Conflict Simulation for Testing -->
+            <form method="post" action="{% url 'work_orders_erp_trigger_sync' %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="force_conflict" value="1">
+                <button type="submit" class="inline-flex items-center px-3 py-2 border border-amber-300 text-sm font-medium rounded-md text-amber-800 bg-amber-50 hover:bg-amber-100">
+                    {% if request.LANGUAGE_CODE == 'ar' %}محاكاة نزاع كمية ERP{% else %}Simulate Inbound Conflict{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "planning/partials/nav_tabs.html" with active_tab="erp_sync" %}
+
+    <!-- Connection Status Banner -->
+    <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+                <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+                <div>
+                    <div class="text-xs font-semibold text-gray-500 uppercase">Connector Status</div>
+                    <div class="text-sm font-bold text-gray-900">Connected (Odoo 17 MRP)</div>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase">Last Sync Cycle</div>
+                <div class="text-sm font-mono font-bold text-gray-800">
+                    {% if latest_run %}{{ latest_run.started_at|date:'Y-m-d H:i:s' }}{% else %}No sync executed yet{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase">Latest Run Status</div>
+                <div class="text-sm font-bold">
+                    {% if latest_run.status == 'SUCCESS' %}
+                    <span class="text-emerald-600">Success (100% Reconciled)</span>
+                    {% elif latest_run.status == 'PARTIAL' %}
+                    <span class="text-amber-600">Partial (Active Conflicts Pending)</span>
+                    {% elif latest_run.status == 'FAILED' %}
+                    <span class="text-red-600">Failed</span>
+                    {% else %}
+                    <span class="text-gray-500">Idle</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase">Pending Conflicts</div>
+                <div class="text-xl font-bold font-mono {% if total_conflicts_count > 0 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                    {{ total_conflicts_count }} Unresolved
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unresolved Conflict Queue Card -->
+    {% if unresolved_conflicts %}
+    <div class="bg-amber-50 border-2 border-amber-300 rounded-lg shadow-sm overflow-hidden mb-8">
+        <div class="p-4 bg-amber-100 border-b border-amber-200 flex items-center justify-between">
+            <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                <svg class="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h2 class="text-sm font-bold text-amber-900 uppercase tracking-wider">
+                    ERP Inbound Conflict Queue (Action Required)
+                </h2>
+            </div>
+            <span class="text-xs font-semibold text-amber-800 bg-amber-200 px-2.5 py-0.5 rounded-full font-mono">
+                {{ unresolved_conflicts.count }} conflict(s) blocking automatic sync
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-amber-200 text-sm">
+                <thead class="bg-amber-100/70">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-amber-900 uppercase">External ERP ID</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-amber-900 uppercase">MES Work Order</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-amber-900 uppercase">Conflict Type</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-amber-900 uppercase">Local MES Value</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-amber-900 uppercase">Remote ERP Value</th>
+                        <th class="px-4 py-3 text-right rtl:text-left text-xs font-semibold text-amber-900 uppercase">Resolution Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-amber-200 bg-white">
+                    {% for c in unresolved_conflicts %}
+                    <tr class="hover:bg-amber-50/50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono font-bold text-gray-900">
+                            {{ c.external_erp_id }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if c.work_order %}
+                            <div class="font-mono font-bold text-gray-900">
+                                <a href="{% url 'work_order_detail' c.work_order.id %}" class="hover:underline text-emerald-700">
+                                    {{ c.work_order.order_number }}
+                                </a>
+                            </div>
+                            <div class="text-xs text-gray-500">Status: {{ c.work_order.status }}</div>
+                            {% else %}
+                            <span class="text-gray-400">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
+                                {{ c.get_conflict_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-800">
+                            <span class="bg-gray-100 px-2 py-0.5 rounded border border-gray-300">
+                                {{ c.field_name }}: <strong>{{ c.local_value }}</strong>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-amber-900 font-bold">
+                            <span class="bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                                {{ c.field_name }}: <strong>{{ c.remote_value }}</strong>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right rtl:text-left space-x-1 rtl:space-x-reverse">
+                            <!-- Accept Remote ERP -->
+                            <form method="post" action="{% url 'work_orders_erp_resolve_conflict' c.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="resolution" value="ACCEPTED_REMOTE">
+                                <button type="submit" class="px-2.5 py-1 text-xs font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs">
+                                    Accept ERP
+                                </button>
+                            </form>
+                            <!-- Keep Local MES -->
+                            <form method="post" action="{% url 'work_orders_erp_resolve_conflict' c.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="resolution" value="KEPT_LOCAL">
+                                <button type="submit" class="px-2.5 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300">
+                                    Keep MES
+                                </button>
+                            </form>
+                            <!-- Dismiss -->
+                            <form method="post" action="{% url 'work_orders_erp_resolve_conflict' c.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="resolution" value="DISMISSED">
+                                <button type="submit" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">
+                                    Dismiss
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Synchronization Ledger / History Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-8">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                ERP Synchronization Execution Ledger
+            </h2>
+            <span class="text-xs text-gray-500">
+                Audited Integration Runs
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Run ID</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Direction</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Created</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Updated</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Conflicts</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase">Timestamp</th>
+                        <th class="px-4 py-3 text-right rtl:text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for run in sync_runs %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono font-bold text-gray-900">
+                            {{ run.run_id }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if run.direction == 'INBOUND_IMPORT' %}
+                            <span class="inline-flex items-center text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                                Inbound (ERP &rarr; MES)
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                                Outbound (MES &rarr; ERP)
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if run.status == 'SUCCESS' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                Success
+                            </span>
+                            {% elif run.status == 'PARTIAL' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
+                                Partial (Conflicts)
+                            </span>
+                            {% elif run.status == 'FAILED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                                Failed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
+                                {{ run.status }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900">{{ run.records_total }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-emerald-600 font-bold">+{{ run.records_created }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-blue-600">{{ run.records_updated }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono {% if run.records_conflicted > 0 %}text-amber-600 font-bold{% else %}text-gray-400{% endif %}">
+                            {{ run.records_conflicted }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">
+                            {{ run.started_at|date:'Y-m-d H:i:s' }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right rtl:text-left">
+                            {% if run.status == 'PARTIAL' or run.status == 'FAILED' %}
+                            <form method="post" action="{% url 'work_orders_erp_retry' run.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 rounded border border-emerald-300">
+                                    Retry
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                            No ERP synchronization runs logged yet. Click "Trigger ERP Sync Now" above.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

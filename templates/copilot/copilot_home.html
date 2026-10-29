@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Header Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 pb-3 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}الذكاء الاصطناعي الصناعي{% else %}Industrial Intelligence{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}المساعد الذكي{% else %}AI Copilot{% endif %}</span>
+            </div>
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                    {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+                </h1>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Dual-Engine: Gemini Flash + Offline Edge
+                </span>
+            </div>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                استعلامات فورية باللغتين العربية والإنجليزية مدعومة بنماذج الذكاء الاصطناعي ومعالجة البيانات المحلية.
+                {% else %}
+                Context-aware plant intelligence with bilingual reasoning, live telemetry binding, and clickable action chips.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Line Selector -->
+        <div class="mt-3 md:mt-0 flex items-center space-x-2 rtl:space-x-reverse">
+            <label class="text-xs font-semibold text-gray-500 uppercase">Line Scope:</label>
+            <form method="get" class="inline">
+                <select name="line" onchange="this.form.submit()" class="text-xs font-medium border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    {% for l in lines %}
+                    <option value="{{ l.id }}" {% if selected_line.id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick 1-Sentence Executive Summary Ribbon -->
+    <div class="bg-white border border-gray-200 rounded-lg p-3 mb-4 shadow-sm flex items-center justify-between border-l-4 {% if quick_summary.status_level == 'OPTIMAL' %}border-l-emerald-500 bg-emerald-50/40{% elif quick_summary.status_level == 'WARNING' %}border-l-amber-500 bg-amber-50/40{% else %}border-l-red-500 bg-red-50/40{% endif %}">
+        <div class="flex items-center space-x-3 rtl:space-x-reverse">
+            <span class="px-2 py-0.5 text-xs font-mono font-bold rounded {% if quick_summary.status_level == 'OPTIMAL' %}bg-emerald-100 text-emerald-800{% elif quick_summary.status_level == 'WARNING' %}bg-amber-100 text-amber-800{% else %}bg-red-100 text-red-800{% endif %}">
+                {{ quick_summary.status_level }}
+            </span>
+            <span class="text-sm font-medium text-gray-800">
+                {{ quick_summary.summary_text }}
+            </span>
+        </div>
+        <div class="hidden sm:block text-xs font-mono text-gray-500">
+            Live OEE: <strong>{{ quick_summary.oee|floatformat:1 }}%</strong>
+        </div>
+    </div>
+
+    <!-- Suggested Query Chips Bar -->
+    <div class="mb-4 flex flex-wrap gap-2 items-center">
+        <span class="text-xs font-semibold text-gray-400 uppercase">{% if request.LANGUAGE_CODE == 'ar' %}أسئلة مقترحة:{% else %}Suggested Prompts:{% endif %}</span>
+        {% if request.LANGUAGE_CODE == 'ar' %}
+        <button onclick="sendSuggestedPrompt('لماذا انخفضت كفاءة الخط الأول اليوم؟')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            لماذا انخفضت كفاءة الخط اليوم؟
+        </button>
+        <button onclick="sendSuggestedPrompt('ما هي الماكينة الخانقة حالياً وما سرعتها؟')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            ما هي الماكينة الخانقة حالياً؟
+        </button>
+        <button onclick="sendSuggestedPrompt('صغ محضر تسليم الوردية للمشرف القادم')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            مسودة محضر تسليم الوردية
+        </button>
+        <button onclick="sendSuggestedPrompt('كم بلغت تكلفة هدر التعبئة الزائدة للوزن؟')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            تكلفة هدر التعبئة الزائدة
+        </button>
+        <button onclick="sendSuggestedPrompt('ما هي حالة أوامر العمل النشطة؟')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            أوامر العمل وجاهزية المواد
+        </button>
+        {% else %}
+        <button onclick="sendSuggestedPrompt('Why is OEE low on Line 1 today?')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            Why is OEE low on Line 1?
+        </button>
+        <button onclick="sendSuggestedPrompt('Which machine is the active bottleneck?')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            Which machine is the bottleneck?
+        </button>
+        <button onclick="sendSuggestedPrompt('Draft shift handover notes for the incoming supervisor.')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            Draft shift handover notes
+        </button>
+        <button onclick="sendSuggestedPrompt('How much did overfill giveaway cost us this morning?')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            Giveaway financial losses
+        </button>
+        <button onclick="sendSuggestedPrompt('What is the status of active work orders?')" class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full border border-gray-300 transition-colors">
+            Active Work Orders status
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Conversational Card Feed -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col" style="height: 520px;">
+        
+        <!-- Messages Area -->
+        <div id="chatFeed" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50">
+            <!-- Initial Greeting -->
+            <div class="flex items-start space-x-3 rtl:space-x-reverse">
+                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    AI
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-3 max-w-2xl shadow-xs">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-gray-900">FactSense Copilot</span>
+                        <span class="text-[10px] font-mono text-gray-400">Offline Heuristic Engine (Edge Fallback)</span>
+                    </div>
+                    <div class="text-sm text-gray-800 whitespace-pre-line leading-relaxed">
+                        {% if request.LANGUAGE_CODE == 'ar' %}
+                        مرحباً! أنا المساعد الصناعي الذكي لمصنع FactSense. أنا مرتبط مباشرة ببيانات التشغيل اللحظية لخط الإنتاج.
+                        يمكنك سؤالي عن كفاءة OEE، تحليل التوقفات، الماكينة الخانقة، هدر التعبئة الزائدة، أو صياغة محضر تسليم الوردية.
+                        {% else %}
+                        Welcome. I am the FactSense Industrial AI Copilot, bound directly to live shop-floor telemetry and ERP planning records.
+                        You can ask me to evaluate OEE bottlenecks, inspect stoppage Pareto causes, calculate giveaway financial impact, or draft shift handover notes.
+                        {% endif %}
+                    </div>
+                    <!-- Action Chips -->
+                    <div class="mt-2.5 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+                        <a href="{% url 'floor_home' %}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded border border-emerald-200 hover:bg-emerald-100">
+                            Live Floor Matrix
+                        </a>
+                        <a href="{% url 'stoppages_home' %}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-gray-700 bg-gray-100 rounded border border-gray-200 hover:bg-gray-200">
+                            Downtime Pareto
+                        </a>
+                        <a href="{% url 'quality_home' %}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-gray-700 bg-gray-100 rounded border border-gray-200 hover:bg-gray-200">
+                            Quality SPC
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing Session Messages (if any) -->
+            {% for m in messages %}
+            {% if m.role == 'user' %}
+            <div class="flex items-start justify-end space-x-3 rtl:space-x-reverse">
+                <div class="bg-emerald-600 text-white rounded-lg p-3 max-w-xl shadow-xs">
+                    <div class="text-sm whitespace-pre-line leading-relaxed">{{ m.content }}</div>
+                    <div class="text-[10px] text-emerald-200 text-right rtl:text-left mt-1 font-mono">
+                        {{ m.created_at|date:'H:i' }}
+                    </div>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    YOU
+                </div>
+            </div>
+            {% else %}
+            <div class="flex items-start space-x-3 rtl:space-x-reverse">
+                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    AI
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-3 max-w-2xl shadow-xs">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-gray-900">FactSense Copilot</span>
+                        <span class="text-[10px] font-mono text-gray-400">{{ m.engine_used }}</span>
+                    </div>
+                    <div class="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{{ m.content }}</div>
+                    {% if m.action_chips %}
+                    <div class="mt-2.5 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+                        {% for chip in m.action_chips %}
+                        <a href="{{ chip.url }}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded border border-emerald-200 hover:bg-emerald-100">
+                            {{ chip.label }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Input Bar -->
+        <div class="p-3 border-t border-gray-200 bg-white">
+            <form id="chatForm" onsubmit="submitQuery(event)" class="flex items-center space-x-2 rtl:space-x-reverse">
+                {% csrf_token %}
+                <input type="hidden" id="sessionId" value="{{ session.id }}">
+                <input type="hidden" id="lineId" value="{{ selected_line.id }}">
+                <input type="text" id="queryInput" required autocomplete="off"
+                       placeholder="{% if request.LANGUAGE_CODE == 'ar' %}اكتب سؤالك هنا باللغة العربية أو الإنجليزية...{% else %}Ask about OEE, bottlenecks, stops, giveaway, or handover...{% endif %}"
+                       class="flex-1 text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 py-2.5">
+                <button type="submit" id="sendBtn" class="inline-flex items-center px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-md hover:bg-emerald-700 shadow-sm focus:outline-none">
+                    <span>{% if request.LANGUAGE_CODE == 'ar' %}إرسال{% else %}Send{% endif %}</span>
+                    <svg class="w-4 h-4 ml-1.5 rtl:mr-1.5 rtl:ml-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendSuggestedPrompt(text) {
+    document.getElementById('queryInput').value = text;
+    document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+}
+
+function submitQuery(e) {
+    e.preventDefault();
+    var input = document.getElementById('queryInput');
+    var query = input.value.trim();
+    if (!query) return;
+
+    var sessionId = document.getElementById('sessionId').value;
+    var lineId = document.getElementById('lineId').value;
+    var feed = document.getElementById('chatFeed');
+    var sendBtn = document.getElementById('sendBtn');
+
+    // 1. Append user message to feed immediately
+    var userBubble = document.createElement('div');
+    userBubble.className = "flex items-start justify-end space-x-3 rtl:space-x-reverse";
+    userBubble.innerHTML = '<div class="bg-emerald-600 text-white rounded-lg p-3 max-w-xl shadow-xs"><div class="text-sm whitespace-pre-line leading-relaxed">' + escapeHtml(query) + '</div></div><div class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-xs shrink-0">YOU</div>';
+    feed.appendChild(userBubble);
+    feed.scrollTop = feed.scrollHeight;
+
+    input.value = '';
+    sendBtn.disabled = true;
+
+    // 2. Append typing placeholder
+    var typingBubble = document.createElement('div');
+    typingBubble.id = "typingIndicator";
+    typingBubble.className = "flex items-start space-x-3 rtl:space-x-reverse";
+    typingBubble.innerHTML = '<div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">AI</div><div class="bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-400 font-mono animate-pulse">Evaluating factory telemetry...</div>';
+    feed.appendChild(typingBubble);
+    feed.scrollTop = feed.scrollHeight;
+
+    // 3. POST to chat API
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    fetch('/copilot/api/chat/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            query: query,
+            line_id: lineId,
+            session_id: sessionId
+        })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        var indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+
+        var aiBubble = document.createElement('div');
+        aiBubble.className = "flex items-start space-x-3 rtl:space-x-reverse";
+        
+        var chipsHtml = '';
+        if (data.action_chips && data.action_chips.length > 0) {
+            chipsHtml = '<div class="mt-2.5 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">';
+            data.action_chips.forEach(function(c) {
+                chipsHtml += '<a href="' + c.url + '" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded border border-emerald-200 hover:bg-emerald-100">' + escapeHtml(c.label) + '</a>';
+            });
+            chipsHtml += '</div>';
+        }
+
+        aiBubble.innerHTML = '<div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">AI</div><div class="bg-white border border-gray-200 rounded-lg p-3 max-w-2xl shadow-xs"><div class="flex items-center justify-between mb-1"><span class="text-xs font-bold text-gray-900">FactSense Copilot</span><span class="text-[10px] font-mono text-gray-400">' + escapeHtml(data.engine_used) + '</span></div><div class="text-sm text-gray-800 whitespace-pre-line leading-relaxed">' + escapeHtml(data.answer) + '</div>' + chipsHtml + '</div>';
+        
+        feed.appendChild(aiBubble);
+        feed.scrollTop = feed.scrollHeight;
+        sendBtn.disabled = false;
+    })
+    .catch(function(err) {
+        var indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+        sendBtn.disabled = false;
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
+{% endblock %}

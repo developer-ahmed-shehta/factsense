@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | FactSense MES{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Breadcrumb & Title Bar -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 pb-4 border-b border-gray-200">
+        <div>
+            <div class="flex items-center space-x-2 rtl:space-x-reverse text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                <span>{% if request.LANGUAGE_CODE == 'ar' %}تخطيط الإنتاج وسلاسل الإمداد{% else %}Planning & Supply Chain{% endif %}</span>
+                <span>/</span>
+                <span class="text-emerald-600">{% if request.LANGUAGE_CODE == 'ar' %}تجهيز المواد الخام{% else %}Material Staging{% endif %}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                {% if request.LANGUAGE_CODE == 'ar' %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {% if request.LANGUAGE_CODE == 'ar' %}
+                تتبع جاهزية مكونات الإنتاج (البريفورم، الأغطية، الملصقات، وكراتين التغليف) لكل أمر عمل نشط.
+                {% else %}
+                Preforms, caps, labels, and packaging readiness monitoring for active manufacturing orders.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    {% include "planning/partials/nav_tabs.html" with active_tab="materials" %}
+
+    <!-- Top KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Components</div>
+            <div class="text-2xl font-bold text-gray-900 font-mono mt-1">{{ total_materials }}</div>
+            <div class="text-xs text-gray-400 mt-1">BOM items across active orders</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 border-l-emerald-500">
+            <div class="text-xs font-medium text-emerald-700 uppercase tracking-wider">Staging Readiness</div>
+            <div class="text-2xl font-bold text-emerald-700 font-mono mt-1">{{ readiness_pct }}%</div>
+            <div class="text-xs text-emerald-600 mt-1">{{ fully_staged }} of {{ total_materials }} fully staged</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 border-l-blue-500">
+            <div class="text-xs font-medium text-blue-700 uppercase tracking-wider">Fully Staged</div>
+            <div class="text-2xl font-bold text-blue-700 font-mono mt-1">{{ fully_staged }}</div>
+            <div class="text-xs text-blue-600 mt-1">100% components verified</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm border-l-4 {% if shortages > 0 %}border-l-red-500 bg-red-50{% else %}border-l-gray-300{% endif %}">
+            <div class="text-xs font-medium {% if shortages > 0 %}text-red-700{% else %}text-gray-500{% endif %} uppercase tracking-wider">
+                Shortage Warnings
+            </div>
+            <div class="text-2xl font-bold {% if shortages > 0 %}text-red-700{% else %}text-gray-900{% endif %} font-mono mt-1">
+                {{ shortages }}
+            </div>
+            <div class="text-xs {% if shortages > 0 %}text-red-600{% else %}text-gray-400{% endif %} mt-1">
+                {% if shortages > 0 %}Immediate supply action required{% else %}Zero material blockages{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Selector Filter -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3 rtl:space-x-reverse w-full md:w-auto">
+            <label class="text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Filter Work Order:</label>
+            <form method="get" class="inline">
+                <select name="order" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">All Active Work Orders ({{ active_orders.count }})</option>
+                    {% for wo in active_orders %}
+                    <option value="{{ wo.id }}" {% if selected_order.id == wo.id %}selected{% endif %}>
+                        {{ wo.order_number }} - {{ wo.product.name }} ({{ wo.status }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        {% if selected_order %}
+        <div class="text-xs text-gray-500 font-mono">
+            Showing components for <strong class="text-gray-800">{{ selected_order.order_number }}</strong> (Target: {{ selected_order.target_quantity }} pcs)
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Material Staging Checklist Table -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-8">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Raw Material Component Staging Checklist
+            </h2>
+            <span class="text-xs text-gray-500">
+                Tracked against Bill of Materials (BOM)
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Work Order</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Material Code</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Component Name</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Required</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Staged (Prog %)</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Lot Number</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-right rtl:text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for m in materials %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono font-bold text-gray-900">
+                            <a href="{% url 'work_order_detail' m.work_order.id %}" class="hover:text-emerald-600 hover:underline">
+                                {{ m.work_order.order_number }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-600">
+                            {{ m.material_code }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                            {{ m.name }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900 font-medium">
+                            {{ m.required_quantity|floatformat:0 }} {{ m.unit_of_measure }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap" style="min-width: 140px;">
+                            <div class="flex items-center justify-between text-xs font-mono text-gray-600 mb-1">
+                                <span>{{ m.staged_quantity|floatformat:0 }}</span>
+                                <span class="font-bold">{{ m.staged_percent }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div class="{% if m.status == 'SHORTAGE' %}bg-red-500{% elif m.status == 'STAGED' %}bg-emerald-600{% else %}bg-blue-600{% endif %} h-1.5 rounded-full" 
+                                     style="width: {{ m.staged_percent }}%;"></div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">
+                            {{ m.lot_number|default:"-" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if m.status == 'STAGED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                Fully Staged
+                            </span>
+                            {% elif m.status == 'PARTIALLY_STAGED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                Partially Staged
+                            </span>
+                            {% elif m.status == 'SHORTAGE' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                                Shortage
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
+                                Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right rtl:text-left space-x-1 rtl:space-x-reverse">
+                            <button type="button" 
+                                    onclick="openStageModal('{{ m.id }}', '{{ m.name }}', '{{ m.required_quantity|floatformat:0 }}', '{{ m.unit_of_measure }}')"
+                                    class="px-2 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                                Stage Qty
+                            </button>
+                            <button type="button" 
+                                    onclick="openShortageModal('{{ m.id }}', '{{ m.name }}')"
+                                    class="px-2 py-1 text-xs font-semibold rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200">
+                                Shortage
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                            No materials checklist items found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Inbound Raw Material Deliveries Table Card -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Recent Inbound Warehouse Deliveries & Dock Receipts
+            </h2>
+            <span class="text-xs text-gray-500">
+                ERP Inbound Gate Receipts
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery No</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Supplier</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Material / Code</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Lot Number</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Dock Location</th>
+                        <th class="px-4 py-3 text-left rtl:text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Received At</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for d in recent_deliveries %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-mono font-bold text-gray-900">
+                            {{ d.delivery_number }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-800">
+                            {{ d.supplier }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-medium text-gray-900">{{ d.material_name|default:d.material_code }}</div>
+                            <div class="text-xs text-gray-500 font-mono">{{ d.material_code }}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-600">
+                            {{ d.lot_number }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-gray-900 font-medium">
+                            {{ d.quantity_received|floatformat:0 }} {{ d.unit_of_measure }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            {{ d.dock_location }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">
+                            {{ d.received_at|date:'Y-m-d H:i' }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                            No inbound delivery records logged yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Stage Quantity Modal -->
+<div id="stageQuantityModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900">Record Material Staging</h3>
+            <button onclick="document.getElementById('stageQuantityModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="stageForm" method="post" action="" class="space-y-4">
+            {% csrf_token %}
+            <p class="text-sm text-gray-600">
+                Staging component <strong id="stageComponentName" class="text-gray-900"></strong> (Required: <span id="stageRequiredQty" class="font-mono"></span>).
+            </p>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Staged Quantity Increment *</label>
+                <input id="stageQuantityInput" type="number" step="1" name="staged_quantity" required class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Component Supplier Lot Number</label>
+                <input type="text" name="lot_number" placeholder="LOT-COMP-..." class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-mono">
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('stageQuantityModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 shadow-sm">
+                    Confirm Staged
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Flag Shortage Modal -->
+<div id="shortageModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-red-700">Flag Component Shortage</h3>
+            <button onclick="document.getElementById('shortageModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="shortageForm" method="post" action="" class="space-y-4">
+            {% csrf_token %}
+            <p class="text-sm text-gray-600">
+                You are reporting a shortage on component <strong id="shortageComponentName" class="text-gray-900"></strong>.
+                This will alert line planners and prevent premature work order release.
+            </p>
+            <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Shortage Explanation & Details *</label>
+                <textarea name="shortage_notes" required rows="3" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500" placeholder="e.g. Warehouse bin empty, supplier shipment delayed..."></textarea>
+            </div>
+            <div class="flex justify-end space-x-3 rtl:space-x-reverse pt-2">
+                <button type="button" onclick="document.getElementById('shortageModal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 shadow-sm">
+                    Submit Shortage Alert
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openStageModal(materialId, name, reqQty, uom) {
+    document.getElementById('stageComponentName').innerText = name;
+    document.getElementById('stageRequiredQty').innerText = reqQty + ' ' + uom;
+    document.getElementById('stageQuantityInput').value = reqQty;
+    document.getElementById('stageForm').action = "/work-orders/materials/" + materialId + "/stage/";
+    document.getElementById('stageQuantityModal').classList.remove('hidden');
+}
+
+function openShortageModal(materialId, name) {
+    document.getElementById('shortageComponentName').innerText = name;
+    document.getElementById('shortageForm').action = "/work-orders/materials/" + materialId + "/shortage/";
+    document.getElementById('shortageModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}
+

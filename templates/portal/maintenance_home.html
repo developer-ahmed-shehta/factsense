@@ -1,81 +1,278 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ page_title }} · {{ BRAND_NAME }}{% endblock %}
+{% block title %}
+  {% if is_rtl %}مركز عمليات الصيانة{% else %}Maintenance Operations Center{% endif %} · {{ BRAND_NAME }}
+{% endblock %}
 
 {% block content %}
-<div class="fs-maintenance-page">
+<div class="fs-maintenance-page" style="max-width: 1400px; margin: 0 auto;">
 
-  <div class="fs-page-header">
-    <div class="fs-page-title-wrap">
-      <h1 class="fs-page-title">
-        {% if is_rtl %}{{ page_title_ar }}{% else %}{{ page_title }}{% endif %}
-      </h1>
-      <p class="fs-page-subtitle">
-        {{ t.active_persona|default:'Active Persona' }}: <strong style="color: var(--fs-brand);">{{ active_role_obj.name }}</strong> &bull; Incident Kanban Board & Spares Dispatch
+  <!-- Header & Navigation -->
+  <div class="fs-page-header" style="background: #FFFFFF; padding: 20px 24px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <span class="fs-role-tag" style="background: #DC2626; color: #FFFFFF; font-weight: 700;">
+          MAINTENANCE COMMAND
+        </span>
+        <h1 class="fs-page-title" style="font-size: 22px; margin: 0; color: #0F172A;">
+          {% if is_rtl %}لوحة كانبان للصيانة وإدارة الأعطال (5-Stage Kanban Incident Board){% else %}Maintenance Incident Kanban Board &amp; Machine Release{% endif %}
+        </h1>
+      </div>
+      <p class="fs-page-subtitle" style="color: #64748B; margin: 0;">
+        5-Stage incident workflow, technician repair clock-in, spare parts SLA pausing, and mandatory root cause release.
       </p>
     </div>
 
-    <div class="fs-page-actions">
-      <span class="fs-batch-badge">
-        <span>Batch 4 &bull; Maintenance Kanban Delivery</span>
-      </span>
+    <!-- Quick Navigation Links -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="{% url 'maintenance_spares' %}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}مخزون قطع الغيار{% else %}Spare Parts Inventory{% endif %}
+      </a>
+      <a href="{% url 'maintenance_history' %}" class="fs-btn fs-btn-secondary" style="min-height: 40px; font-size: 13px;">
+        {% if is_rtl %}سجل الإصلاحات{% else %}Repair History Log{% endif %}
+      </a>
     </div>
   </div>
 
-  <!-- Kanban Column Previews -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px;">
-    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #EF4444;">
-      <div style="font-weight: 700; font-size: 13px; color: #DC2626; margin-bottom: 8px;">OPEN (0)</div>
-      <p style="font-size: 12px; color: var(--fs-text-secondary);">No unassigned breakdown calls</p>
-    </div>
+  <!-- 5-STAGE KANBAN BOARD -->
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 16px; align-items: flex-start; overflow-x: auto; padding-bottom: 16px;">
+    
+    <!-- Column 1: OPEN / UNASSIGNED -->
+    <div style="background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; padding: 14px; min-height: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #94A3B8; padding-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">
+          1. OPEN / UNASSIGNED
+        </span>
+        <span class="fs-role-tag" style="background: #E2E8F0; color: #334155; font-weight: 700;">
+          {{ open_tickets.count }}
+        </span>
+      </div>
 
-    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #F59E0B;">
-      <div style="font-weight: 700; font-size: 13px; color: #D97706; margin-bottom: 8px;">ASSIGNED (1)</div>
-      <div style="background: var(--fs-surface-alt); padding: 8px; border-radius: 4px; font-size: 12px; border: 1px solid var(--fs-border);">
-        <strong>#TKT-1042</strong> &bull; CP-01 (Capper)<br>
-        <span style="color: var(--fs-text-secondary);">Torque head calibration</span>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for t in open_tickets %}
+          {% include 'portal/partials/kanban_ticket_card.html' with ticket=t col='open' %}
+        {% empty %}
+          <div style="font-size: 12px; color: #94A3B8; text-align: center; padding: 24px 0;">No open tickets.</div>
+        {% endfor %}
       </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #2563EB;">
-      <div style="font-weight: 700; font-size: 13px; color: #2563EB; margin-bottom: 8px;">IN PROGRESS (0)</div>
-      <p style="font-size: 12px; color: var(--fs-text-secondary);">No active repairs clock-in</p>
+    <!-- Column 2: ASSIGNED / DISPATCHED -->
+    <div style="background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; padding: 14px; min-height: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #3B82F6; padding-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #1D4ED8; text-transform: uppercase;">
+          2. ASSIGNED / DISPATCHED
+        </span>
+        <span class="fs-role-tag" style="background: #DBEAFE; color: #1E40AF; font-weight: 700;">
+          {{ assigned_tickets.count }}
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for t in assigned_tickets %}
+          {% include 'portal/partials/kanban_ticket_card.html' with ticket=t col='assigned' %}
+        {% empty %}
+          <div style="font-size: 12px; color: #94A3B8; text-align: center; padding: 24px 0;">No assigned tickets.</div>
+        {% endfor %}
+      </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #8B5CF6;">
-      <div style="font-weight: 700; font-size: 13px; color: #7C3AED; margin-bottom: 8px;">WAITING SPARES (0)</div>
-      <p style="font-size: 12px; color: var(--fs-text-secondary);">No pending part orders</p>
+    <!-- Column 3: IN PROGRESS / UNDER REPAIR -->
+    <div style="background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; padding: 14px; min-height: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #F59E0B; padding-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #B45309; text-transform: uppercase;">
+          3. IN PROGRESS
+        </span>
+        <span class="fs-role-tag" style="background: #FEF3C7; color: #92400E; font-weight: 700;">
+          {{ in_progress_tickets.count }}
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for t in in_progress_tickets %}
+          {% include 'portal/partials/kanban_ticket_card.html' with ticket=t col='in_progress' %}
+        {% empty %}
+          <div style="font-size: 12px; color: #94A3B8; text-align: center; padding: 24px 0;">No active repairs.</div>
+        {% endfor %}
+      </div>
     </div>
 
-    <div class="fs-table-card" style="padding: 16px; border-top: 3px solid #10B981;">
-      <div style="font-weight: 700; font-size: 13px; color: #059669; margin-bottom: 8px;">RESOLVED (3)</div>
-      <p style="font-size: 12px; color: var(--fs-text-secondary);">Cleared today & verified</p>
+    <!-- Column 4: WAITING FOR SPARES -->
+    <div style="background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; padding: 14px; min-height: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #8B5CF6; padding-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #6D28D9; text-transform: uppercase;">
+          4. WAITING SPARES (PAUSED)
+        </span>
+        <span class="fs-role-tag" style="background: #EDE9FE; color: #5B21B6; font-weight: 700;">
+          {{ waiting_spares_tickets.count }}
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for t in waiting_spares_tickets %}
+          {% include 'portal/partials/kanban_ticket_card.html' with ticket=t col='waiting_spares' %}
+        {% empty %}
+          <div style="font-size: 12px; color: #94A3B8; text-align: center; padding: 24px 0;">No tickets waiting on parts.</div>
+        {% endfor %}
+      </div>
     </div>
-  </div>
 
-  <div class="fs-batch-card">
-    <div style="margin-bottom: 12px;">
-      <h2 style="font-size: 17px; font-weight: 700; color: var(--fs-text-primary);">
-        Maintenance Kanban & Incident Board Roadmap (Batch 4 Scope)
-      </h2>
+    <!-- Column 5: RESOLVED & RELEASED -->
+    <div style="background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; padding: 14px; min-height: 500px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #10B981; padding-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #047857; text-transform: uppercase;">
+          5. RESOLVED &amp; RELEASED
+        </span>
+        <span class="fs-role-tag" style="background: #D1FAE5; color: #065F46; font-weight: 700;">
+          {{ resolved_tickets.count }}
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for t in resolved_tickets %}
+          {% include 'portal/partials/kanban_ticket_card.html' with ticket=t col='resolved' %}
+        {% empty %}
+          <div style="font-size: 12px; color: #94A3B8; text-align: center; padding: 24px 0;">No resolved tickets in view.</div>
+        {% endfor %}
+      </div>
     </div>
 
-    <p style="font-size: 14px; color: var(--fs-text-secondary); margin-bottom: 20px;">
-      The 5-stage drag-and-drop Kanban board, technician clock-in mobile sheet, mandatory root cause logging, and machine release safety lockouts will be delivered in <strong>Batch 4</strong>:
-    </p>
-
-    <ul class="fs-roadmap-list">
-      {% for feature in scheduled_features %}
-        <li class="fs-roadmap-item">
-          <svg class="fs-roadmap-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 11 12 14 22 4"></polyline>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-          </svg>
-          <span>{{ feature }}</span>
-        </li>
-      {% endfor %}
-    </ul>
   </div>
 
 </div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Technician Clock-In Modal -->
+<!-- ============================================================================== -->
+<div id="clockInModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: #FFFFFF; border-radius: 8px; width: 100%; max-width: 440px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+    <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin: 0 0 12px 0;">Technician Repair Clock-In</h3>
+    <p style="font-size: 13px; color: #64748B; margin-bottom: 20px;">
+      Clocking in sets the start timestamp, assigns you as lead technician, and moves the ticket to <strong>IN PROGRESS</strong>.
+    </p>
+
+    <form method="POST" action="{% url 'maintenance_clock_in_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="ticket_id" id="clockInTicketId" value="">
+      
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" onclick="document.getElementById('clockInModal').style.display='none'" class="fs-btn fs-btn-secondary" style="min-height: 44px;">
+          Cancel
+        </button>
+        <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A; min-height: 44px; font-weight: 700;">
+          Confirm Clock-In
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Request Spare Part Modal -->
+<!-- ============================================================================== -->
+<div id="spareModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: #FFFFFF; border-radius: 8px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+    <h3 style="font-size: 18px; font-weight: 800; color: #0F172A; margin: 0 0 12px 0;">Requisition Spare Part</h3>
+    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
+      Requesting a spare part transitions this ticket to <strong>WAITING FOR SPARES</strong> and pauses the SLA clock until delivery.
+    </p>
+
+    <form method="POST" action="{% url 'maintenance_request_spare_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="ticket_id" id="spareTicketId" value="">
+
+      <div style="margin-bottom: 16px;">
+        <label class="fs-form-label">SELECT SPARE PART</label>
+        <select name="part_id" class="fs-form-select" required style="min-height: 44px; font-size: 13px;">
+          {% for sp in spares %}
+            <option value="{{ sp.id }}">{{ sp.part_number }} - {{ sp.name }} (In Stock: {{ sp.in_stock_quantity }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="fs-form-label">QUANTITY NEEDED</label>
+        <input type="number" name="quantity" value="1" min="1" class="fs-form-input" required style="min-height: 44px;">
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" onclick="document.getElementById('spareModal').style.display='none'" class="fs-btn fs-btn-secondary" style="min-height: 44px;">
+          Cancel
+        </button>
+        <button type="submit" class="fs-btn fs-btn-primary" style="background: #8B5CF6; border-color: #8B5CF6; min-height: 44px; font-weight: 700;">
+          Request Part &amp; Pause SLA
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Mandatory Root Cause & Release Machine Modal -->
+<!-- ============================================================================== -->
+<div id="resolveModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: #FFFFFF; border-radius: 8px; width: 100%; max-width: 560px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+    <h3 style="font-size: 18px; font-weight: 800; color: #16A34A; margin: 0 0 8px 0;">
+      Record Solution &amp; Release Machine
+    </h3>
+    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
+      Mandatory root cause classification and solution notes are required to prevent recurring downtime before clearing the machine force-lockout.
+    </p>
+
+    <form method="POST" action="{% url 'maintenance_resolve_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="ticket_id" id="resolveTicketId" value="">
+
+      <div style="margin-bottom: 14px;">
+        <label class="fs-form-label">ROOT CAUSE CATEGORY</label>
+        <select name="root_cause_category_id" class="fs-form-select" required style="min-height: 44px;">
+          {% for c in categories %}
+            <option value="{{ c.id }}">{{ c.name }} ({{ c.get_department_display }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label class="fs-form-label">ROOT CAUSE AUDIT NOTES (MANDATORY)</label>
+        <textarea name="root_cause_notes" class="fs-form-input" rows="2" placeholder="e.g. Broken capping chuck spring due to fatigue after 40,000 cycles" required style="padding: 10px;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label class="fs-form-label">TECHNICAL ACTIONS &amp; SOLUTION (MANDATORY)</label>
+        <textarea name="solution_notes" class="fs-form-input" rows="2" placeholder="e.g. Replaced chuck spring, recalibrated torque sensor to 2.4 Nm, ran 10 test bottles successfully" required style="padding: 10px;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="fs-form-label">PARTS USED / REPLACED</label>
+        <input type="text" name="parts_used" class="fs-form-input" placeholder="e.g. 1x Spring SP-CHK-01" style="min-height: 44px;">
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button type="button" onclick="document.getElementById('resolveModal').style.display='none'" class="fs-btn fs-btn-secondary" style="min-height: 44px;">
+          Cancel
+        </button>
+        <button type="submit" class="fs-btn fs-btn-primary" style="background: #16A34A; border-color: #16A34A; min-height: 44px; font-weight: 700;">
+          Release Machine to Production
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openClockInModal(ticketId) {
+    document.getElementById('clockInTicketId').value = ticketId;
+    document.getElementById('clockInModal').style.display = 'flex';
+  }
+
+  function openSpareModal(ticketId) {
+    document.getElementById('spareTicketId').value = ticketId;
+    document.getElementById('spareModal').style.display = 'flex';
+  }
+
+  function openResolveModal(ticketId) {
+    document.getElementById('resolveTicketId').value = ticketId;
+    document.getElementById('resolveModal').style.display = 'flex';
+  }
+</script>
 {% endblock %}
